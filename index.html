@@ -15,6 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
+        /* Same CSS as before - keep all styles */
         :root {
             --primary: #1e3c72;
             --secondary: #2a5298;
@@ -380,22 +381,22 @@
                 </div>
                 <div class="row mt-3"><div class="col-12"><button class="btn btn-primary rounded-pill px-4" onclick="submitInvoice()"><i class="fas fa-save me-2"></i>Save Invoice</button></div></div>
                 <hr><h6 class="fw-semibold">Today's Invoices Summary</h6>
-                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody></table></div>
+                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>  </table></div>
             </div></div>
         </div>
         
         <!-- Order Book Tab -->
-        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody></table></div></div></div></div>
+        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody> </table></div></div></div></div>
         
         <!-- Performance Tab -->
-        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody></table></div></div></div></div>
+        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody> </table></div></div></div></div>
     </div>
     <div class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i></div>
 
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
         // IMPORTANT: Replace this URL with your deployed Apps Script Web App URL
-        const CONFIG = { SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxQT8caBDYiTYVs1ItP0sILXbKXJXXU6OdyeVcB_KtilxAJvtgfPFfftTC5ayaeViC_Fg/exec' };
+        const CONFIG = { SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxypYFk7YCFkeYLkqS-ucnBOVgnWlG8x1luxaqzGJ868Ln3VAPw8sze9NhTJsjIKjQIfA/exec' };
         
         let projects = [], dailyEntries = [], invoices = [], uniqueManagers = new Set();
         let currentDashboardPeriod = 'daily', currentRevenueChartPeriod = 'daily', currentPieChartPeriod = 'daily', currentManagerPeriod = 'daily';
@@ -549,7 +550,7 @@
             let headers = '<th>Division</th><th>Manager</th><th>Project</th><th>Status</th><th>Total Income</th><th>Gross Profit</th>';
             document.getElementById('orderBookHeader').innerHTML = headers;
             let body = '';
-            projects.forEach(p => { let gp = p.TotalIncome * (p.Margin / 100); body += `<tr><td>${p.Division || 'Onpoint'}</td><td>${p.Manager}</td><td><strong>${p.ProjectName}</strong></td><td><span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status}</span></td><td>${formatCurrency(p.TotalIncome)}</td><td>${formatCurrency(gp)}</td></tr>`; });
+            projects.forEach(p => { let gp = p.TotalIncome * (p.Margin / 100); body += `tr<td>${p.Division || 'Onpoint'}</td><td>${p.Manager}</td><td><strong>${p.ProjectName}</strong></td><td><span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status}</span></td><td>${formatCurrency(p.TotalIncome)}</td><td>${formatCurrency(gp)}</td></tr>`; });
             document.getElementById('orderBookBody').innerHTML = body || '<tr><td colspan="6">No projects loaded</td></tr>';
         }
         
