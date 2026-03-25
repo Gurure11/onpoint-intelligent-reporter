@@ -381,22 +381,29 @@
                 </div>
                 <div class="row mt-3"><div class="col-12"><button class="btn btn-primary rounded-pill px-4" onclick="submitInvoice()"><i class="fas fa-save me-2"></i>Save Invoice</button></div></div>
                 <hr><h6 class="fw-semibold">Today's Invoices Summary</h6>
-                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>       </table></div>
+                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>        </table></div>
             </div></div>
         </div>
         
         <!-- Order Book Tab -->
-        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book - All Projects from Projects Sheet</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>       </table></div></div></div></div>
+        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book - All Projects from Projects Sheet</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>        </table></div></div></div></div>
         
         <!-- Performance Tab -->
-        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>       </table></div></div></div></div>
+        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>        </table></div></div></div></div>
     </div>
     <div class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i></div>
 
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
-        // REPLACE THIS URL WITH YOUR DEPLOYED APPS SCRIPT URL
-        const CONFIG = { SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwZEGBju2Wy9gBNo_P2MOnR6Pp7XMCTK4ATGKVtYsedMWpET_eT3hkSxHa_Kkb1VQ4/exec' };
+        // Google Sheets Configuration
+        const CONFIG = { 
+            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwZEGBju2Wy9gBNo_P2MOnR6Pp7XMCTK4ATGKVtYsedMWpET_eT3hkSxHa_Kkb1VQ4/exec',
+            PROJECTS_SHEET_ID: '1YNQ4pwOdddNGr-_Gef2bbxVgoW4lKsXy-roPvfFmMEM',
+            PROJECTS_SHEET_NAME: 'Projects',
+            REVENUE_SHEET_ID: '1XW6-Kz9_8P0MKRHZlsYfz4BCGilatiQ1FoA_MGAKeqg',
+            REVENUE_SHEET_NAME: 'Revenue',
+            INVOICES_SHEET_NAME: 'Invoices'
+        };
         
         // Unique Project Managers List (no repeats)
         const PROJECT_MANAGERS = [
@@ -804,7 +811,7 @@
         async function loadAllData() {
             showLoading("Fetching live data from Google Sheets...");
             try {
-                // Fetch Projects from Projects Sheet ID: 1YNQ4pwOdddNGr-_Gef2bbxVgoW4lKsXy-roPvfFmMEM
+                // Fetch Projects from Projects Sheet
                 const projectsRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getProjects`, { method: 'GET', mode: 'cors' });
                 if (!projectsRes.ok) throw new Error(`HTTP ${projectsRes.status}: Failed to fetch projects`);
                 let projectsRaw = await projectsRes.json();
@@ -820,9 +827,7 @@
                     months: [parseNumber(p.Mar26), parseNumber(p.Apr26), parseNumber(p.May26), parseNumber(p.Jun26), parseNumber(p.Jul26), parseNumber(p.Aug26), parseNumber(p.Sep26), parseNumber(p.Oct26), parseNumber(p.Nov26), parseNumber(p.Dec26), parseNumber(p.Jan27), parseNumber(p.Feb27)] 
                 }));
                 
-                // ADD DEBUG LOGS HERE
-                console.log("Projects loaded:", projects);
-                console.log("Projects count:", projects.length);
+                console.log("Projects loaded:", projects.length);
                 
                 // Fetch Revenue
                 const revenueRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getRevenue`, { method: 'GET', mode: 'cors' });
@@ -838,9 +843,7 @@
                     safety: parseNumber(r.Safety || r.safety) || 0
                 }));
                 
-                // ADD DEBUG LOGS HERE
-                console.log("Revenue loaded:", dailyEntries);
-                console.log("Revenue entries count:", dailyEntries.length);
+                console.log("Revenue loaded:", dailyEntries.length);
                 
                 // Fetch Invoices separately
                 const invoiceRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getInvoices`, { method: 'GET', mode: 'cors' });
@@ -857,9 +860,7 @@
                     invoices = dailyEntries.filter(e => e.date === new Date().toISOString().split('T')[0]);
                 }
                 
-                // ADD DEBUG LOGS HERE
-                console.log("Invoices loaded:", invoices);
-                console.log("Invoices count:", invoices.length);
+                console.log("Invoices loaded:", invoices.length);
                 
                 document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-check-circle me-1"></i> Live Connected';
                 document.getElementById('connectionStatus').className = 'connection-status status-connected';
