@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -104,13 +103,16 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             border-left: 4px solid var(--primary);
             transition: all 0.3s;
+            cursor: pointer;
         }
         
         .kpi-card:hover { transform: translateY(-3px); }
+        .kpi-card.active { border-left-color: var(--success); background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%); }
         
         .kpi-icon { font-size: 32px; color: var(--primary); margin-bottom: 10px; }
         .kpi-value { font-size: 28px; font-weight: 800; color: var(--dark); }
         .kpi-label { color: #6c757d; font-size: 13px; text-transform: uppercase; font-weight: 600; }
+        .kpi-trend { font-size: 12px; color: #6c757d; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e9ecef; }
         
         .card {
             border: none;
@@ -261,6 +263,15 @@
         .variance-positive { color: #28a745; font-weight: 600; }
         .variance-negative { color: #dc3545; font-weight: 600; }
         
+        .badge-risk-low { background: #d4edda; color: #155724; }
+        .badge-risk-medium { background: #fff3cd; color: #856404; }
+        .badge-risk-high { background: #f8d7da; color: #721c24; }
+        
+        .risk-card { border-left: 4px solid; transition: all 0.3s; }
+        .risk-low { border-left-color: #28a745; }
+        .risk-medium { border-left-color: #ffc107; }
+        .risk-high { border-left-color: #dc3545; }
+        
         @media (max-width: 768px) {
             .company-title { font-size: 28px; }
             .kpi-value { font-size: 22px; }
@@ -271,7 +282,7 @@
     <div class="loading-overlay" id="loadingOverlay">
         <div class="text-center">
             <div class="spinner"></div>
-            <div style="color: var(--primary); font-weight: 600;" id="loadingMessage">Loading data...</div>
+            <div style="color: var(--primary); font-weight: 600;" id="loadingMessage">Loading data from Google Sheets...</div>
         </div>
     </div>
     
@@ -306,46 +317,63 @@
         
         <div class="nav-custom">
             <div class="nav">
-                <button class="nav-link active" onclick="showTab('dashboard', this)"><i class="fas fa-chart-pie"></i> Dashboard</button>
-                <button class="nav-link" onclick="showTab('projects', this)"><i class="fas fa-list"></i> Projects</button>
+                <button class="nav-link active" onclick="showTab('dashboard', this)"><i class="fas fa-chart-pie"></i> Executive Dashboard</button>
+                <button class="nav-link" onclick="showTab('performance', this)"><i class="fas fa-chart-line"></i> Performance Report</button>
                 <button class="nav-link" onclick="showTab('revenue', this)"><i class="fas fa-calendar-day"></i> Daily Revenue</button>
-                <button class="nav-link" onclick="showTab('performance', this)"><i class="fas fa-trophy"></i> PM Performance</button>
+                <button class="nav-link" onclick="showTab('actions', this)"><i class="fas fa-bell"></i> Action Report</button>
                 <button class="nav-link" onclick="showTab('orderbook', this)"><i class="fas fa-book"></i> Order Book</button>
             </div>
         </div>
         
-        <!-- Dashboard Tab -->
+        <!-- Executive Dashboard Tab -->
         <div id="dashboard" class="tab-content">
+            <!-- Group at a Glance -->
+            <div class="card">
+                <div class="card-header"><i class="fas fa-chart-simple"></i> Group at a Glance</div>
+                <div class="card-body">
+                    <div class="row g-3" id="groupAtGlance"></div>
+                </div>
+            </div>
+            
+            <!-- KPI Cards Row -->
             <div class="kpi-grid" id="kpiGrid"></div>
             
-            <div class="row">
-                <div class="col-lg-8">
-                    <div class="card">
-                        <div class="card-header"><i class="fas fa-chart-line"></i> Budget vs Actual Revenue</div>
-                        <div class="card-body">
-                            <div id="budgetVsActualChart" style="height: 350px;"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="card">
-                        <div class="card-header"><i class="fas fa-chart-pie"></i> Division Mix</div>
-                        <div class="card-body">
-                            <div id="divisionPieChart" style="height: 300px;"></div>
-                        </div>
+            <!-- KPI Filter Badges -->
+            <div class="d-flex flex-wrap align-items-center mb-3">
+                <i class="fas fa-filter me-2 text-muted"></i>
+                <span class="me-2 fw-semibold">Active KPI filter:</span>
+                <span class="badge bg-secondary me-2" id="activeKpiBadge">All records</span>
+                <button id="clearKpiFilter" class="btn btn-sm btn-outline-secondary" style="display: none;" onclick="clearKpiFilter()">Clear filter</button>
+            </div>
+            
+            <!-- Cash KPIs Row -->
+            <div class="kpi-grid" id="cashKpiGrid"></div>
+            
+            <!-- Budget vs Actual Risk View -->
+            <div class="card">
+                <div class="card-header"><i class="fas fa-chart-line"></i> Budget vs Actual and Risk View</div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr><th>Period</th><th class="text-end">Budget</th><th class="text-end">Actual</th><th class="text-end">Gap</th><th class="text-end">Ach %</th><th class="text-end">Risk</th></tr>
+                            </thead>
+                            <tbody id="budgetVsActualBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
             
+            <!-- Divisional and PM Performance -->
             <div class="row">
                 <div class="col-md-6">
                     <div class="card">
-                        <div class="card-header"><i class="fas fa-building"></i> Divisional Performance</div>
+                        <div class="card-header"><i class="fas fa-building"></i> Divisional Performance at a Glance</div>
                         <div class="card-body">
                             <div class="table-container">
-                                <table class="table table-sm">
-                                    <thead> <th>Division</th><th class="text-end">Actual</th><th class="text-end">Target</th><th class="text-end">Ach %</th> </thead>
-                                    <tbody id="divisionTable"></tbody>
+                                <table class="table">
+                                    <thead><tr><th>Division</th><th class="text-end">Actual</th><th class="text-end">Target</th><th class="text-end">Score</th></tr></thead>
+                                    <tbody id="divisionPerformanceBody"></tbody>
                                 </table>
                             </div>
                         </div>
@@ -353,43 +381,46 @@
                 </div>
                 <div class="col-md-6">
                     <div class="card">
-                        <div class="card-header"><i class="fas fa-exclamation-triangle"></i> Action Summary</div>
-                        <div class="card-body" id="actionSummary"></div>
+                        <div class="card-header"><i class="fas fa-users"></i> PM Performance at a Glance</div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table">
+                                    <thead><tr><th>PM</th><th class="text-end">Actual</th><th class="text-end">Target</th><th class="text-end">Score</th></tr></thead>
+                                    <tbody id="pmPerformanceBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- Charts Row -->
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-8">
                     <div class="card">
-                        <div class="card-header"><i class="fas fa-clock"></i> Deadline Performance</div>
-                        <div class="card-body">
-                            <div id="deadlineChart" style="height: 250px;"></div>
-                        </div>
+                        <div class="card-header"><i class="fas fa-chart-bar"></i> Reported Revenue vs Target</div>
+                        <div class="card-body"><div id="revenueChart" style="height: 350px;"></div></div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="card">
-                        <div class="card-header"><i class="fas fa-star"></i> Quality Performance</div>
-                        <div class="card-body">
-                            <div id="qualityChart" style="height: 250px;"></div>
-                        </div>
+                        <div class="card-header"><i class="fas fa-chart-pie"></i> Division Mix</div>
+                        <div class="card-body"><div id="divisionPieChart" style="height: 350px;"></div></div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Projects Tab -->
-        <div id="projects" class="tab-content" style="display:none;">
+        <!-- Performance Report Tab -->
+        <div id="performance" class="tab-content" style="display:none;">
             <div class="card">
-                <div class="card-header"><i class="fas fa-list"></i> All Projects</div>
+                <div class="card-header"><i class="fas fa-chart-line"></i> Performance Report by Division</div>
                 <div class="card-body">
-                    <div class="table-container">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr><th>Division</th><th>Manager</th><th>Project</th><th>Status</th><th class="text-end">Total Income</th><th class="text-end">Margin</th><th class="text-end">Deadline</th><th class="text-end">Quality</th><th>Progress</th></tr>
-                            </thead>
-                            <tbody id="projectsTable"></tbody>
+                    <div id="performanceAreaChart" style="height: 350px;"></div>
+                    <div class="table-container mt-4">
+                        <table class="table">
+                            <thead><tr><th>Project</th><th class="text-end">Revenue</th><th class="text-end">Target</th><th class="text-end">Profit</th><th class="text-end">Deadline</th><th class="text-end">Quality</th></tr></thead>
+                            <tbody id="performanceTableBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -410,6 +441,7 @@
                             <div class="col-md-3"><label class="form-label">Revenue Amount (R)</label><input type="number" class="form-control" id="revAmount" step="1000" min="0" required oninput="calculateVariance()"></div>
                             <div class="col-md-3"><label class="form-label">Daily Budget (R)</label><input type="text" class="form-control" id="revBudget" readonly></div>
                             <div class="col-md-3"><label class="form-label">Variance (R)</label><input type="text" class="form-control" id="revVariance" readonly></div>
+                            <div class="col-md-3"><label class="form-label">Quality Score (%)</label><input type="number" class="form-control" id="revQuality" step="1" min="0" max="100" value="80" placeholder="Quality %"></div>
                             <div class="col-md-3"><label class="form-label">Notes</label><input type="text" class="form-control" id="revNotes" placeholder="Optional"></div>
                         </div>
                         <div class="mt-4"><button type="button" class="btn btn-success" onclick="submitRevenue()"><i class="fas fa-save me-2"></i>Save Revenue</button></div>
@@ -424,7 +456,7 @@
                 <div class="card-body">
                     <div class="table-container">
                         <table class="table table-sm">
-                            <thead><tr><th>Date</th><th>Division</th><th>Manager</th><th>Project</th><th class="text-end">Amount</th><th class="text-end">Budget</th><th class="text-end">Variance</th></tr></thead>
+                            <thead><tr><th>Date</th><th>Division</th><th>Manager</th><th>Project</th><th class="text-end">Amount</th><th class="text-end">Budget</th><th class="text-end">Variance</th><th class="text-end">Quality</th></tr></thead>
                             <tbody id="recentRevenueTable"></tbody>
                         </table>
                     </div>
@@ -432,16 +464,26 @@
             </div>
         </div>
         
-        <!-- PM Performance Tab -->
-        <div id="performance" class="tab-content" style="display:none;">
-            <div class="card">
-                <div class="card-header"><i class="fas fa-trophy"></i> Project Managers Performance Ranking</div>
-                <div class="card-body">
-                    <div class="table-container">
-                        <table class="table">
-                            <thead><tr><th>Rank</th><th>Manager</th><th>Division</th><th>Projects</th><th class="text-end">Daily Budget</th><th class="text-end">Daily Actual</th><th class="text-end">Achievement</th><th>Status</th></tr></thead>
-                            <tbody id="pmRankingTable"></tbody>
-                        </table>
+        <!-- Action Report Tab -->
+        <div id="actions" class="tab-content" style="display:none;">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header"><i class="fas fa-bell"></i> Action Report</div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table">
+                                    <thead><tr><th>Project</th><th>Owner</th><th>Due</th><th>Status</th><th>Recovery Plan</th></tr></thead>
+                                    <tbody id="actionReportBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header"><i class="fas fa-exclamation-triangle"></i> Action Summary</div>
+                        <div class="card-body" id="actionSummaryBody"></div>
                     </div>
                 </div>
             </div>
@@ -473,27 +515,8 @@
             REVENUE_SHEET_ID: '1zDYBgJYf6jQkzDSNdKDWwTRyJolf2gRxEYgv78lTFrM',
             PROJECTS_SHEET_NAME: 'Orders',
             REVENUE_SHEET_NAME: 'Revenue',
-            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyn7QyUqKwM5DFyjGDBtk_Lcs6bo7W52rVcX2BKF2L_kMp7WzxpZlsQ8u--bjkdImNT/exec'
+            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZRdxy5Qhl3VEMvcpGYu9pbDGdyLwQny9IS4NlQtN91yBpSNA_EACWN2CLDKpp0514/exec'
         };
-
-        // Unique Project Names (No duplicates)
-        const PROJECT_NAMES = [
-            "DBSA Generators", "DBSA Rooiwal", "Joe Gqabi", "Temba", "Midvaal", "Coega",
-            "KZN General Buildings", "Tshwane", "Public Works Limpopo", "Limpopo Eskom Substation Ephraim Mogale",
-            "Naizna", "Cape Town", "COT Streetlights", "COT Electrification", "COT Metering",
-            "COE Streetlights", "Msunduzi E50", "Msunduzi Streetlights", "Msunduzi E33", "Msunduzi E47",
-            "Moqhaka Streetlights", "Moqhaka Metering", "Centlec CD11", "Centlec Transformers CD32",
-            "Centlec CD45", "Midvaal Mechanical", "Eskom SPU", "Eskom FSOU Substation", "Eskom ECOU",
-            "Eskom LOU General Buildings", "Eskom KZN Minor Reticulation", "Randwest Electrical",
-            "Randwest Roads & Stormwater", "Randwest Water rand sanitation", "Randwest Bulk", "RAL",
-            "Stellenbosch", "Liquid ECPG", "Liquid ECSOD", "Liquid Gauteng SOD", "Telkom", "MTN",
-            "Centlec", "Eskom Harvard", "City Power", "Umhlathuze Municipality", "Eskom WC",
-            "COE Buildings", "Midvaal Water", "Midvaal Electricity", "Uthukela", "Kgetleng River",
-            "Ray Nkonyeni Facility", "Ray Nkonyeni Electrical Material", "Ray Nkonyeni Mast",
-            "Ray Nkonyeni Meter Reading", "Ramotshere Electrical Supplies", "Newcastle Substations",
-            "Ubuntu", "IDT North West Buildings", "Amajuba Generator", "uPhongolo",
-            "Abaquilisi Battery Supplies", "Abaquilisi Streetlights"
-        ];
 
         // Unique Project Managers (No duplicates)
         const PROJECT_MANAGERS = [
@@ -504,7 +527,12 @@
 
         let projects = [];
         let revenueEntries = [];
+        let currentPeriod = "Daily";
+        let activeKpiFilter = "all";
         let charts = {};
+
+        const PERIODS = ["Daily", "Weekly", "Monthly", "Quarterly", "Yearly"];
+        const DIVISION_COLORS = ["#1e3c72", "#2a5298", "#3b6cb0", "#4c86c8", "#5da0e0"];
 
         // ============================================
         // API CALLS
@@ -545,10 +573,18 @@
                     margin: parseFloat(p.Margin) || 0,
                     deadlineScore: parseFloat(p.DeadlineScore) || 70,
                     qualityScore: parseFloat(p.QualityScore) || 80,
-                    months: [parseFloat(p.Mar26)||0, parseFloat(p.Apr26)||0, parseFloat(p.May26)||0,
-                             parseFloat(p.Jun26)||0, parseFloat(p.Jul26)||0, parseFloat(p.Aug26)||0,
-                             parseFloat(p.Sep26)||0, parseFloat(p.Oct26)||0, parseFloat(p.Nov26)||0,
-                             parseFloat(p.Dec26)||0, parseFloat(p.Jan27)||0, parseFloat(p.Feb27)||0]
+                    safetyScore: 100,
+                    cashCollected: parseFloat(p.CashCollected) || 0,
+                    actionOwner: p.ActionOwner || '',
+                    actionDue: p.ActionDue || '',
+                    actionStatus: p.ActionStatus || 'Open',
+                    recovery: p.Recovery || '',
+                    months: [
+                        parseFloat(p.Mar26)||0, parseFloat(p.Apr26)||0, parseFloat(p.May26)||0,
+                        parseFloat(p.Jun26)||0, parseFloat(p.Jul26)||0, parseFloat(p.Aug26)||0,
+                        parseFloat(p.Sep26)||0, parseFloat(p.Oct26)||0, parseFloat(p.Nov26)||0,
+                        parseFloat(p.Dec26)||0, parseFloat(p.Jan27)||0, parseFloat(p.Feb27)||0
+                    ]
                 }));
             }
             return [];
@@ -564,6 +600,7 @@
                     projectName: r.ProjectName || '',
                     amount: parseFloat(r.Amount) || 0,
                     dailyBudget: parseFloat(r.DailyBudget) || 0,
+                    qualityScore: parseFloat(r.QualityScore) || 80,
                     notes: r.Notes || ''
                 }));
             }
@@ -571,206 +608,377 @@
         }
 
         // ============================================
-        // HELPER FUNCTIONS
+        // HELPER FUNCTIONS - CORRECT DAILY BUDGET CALCULATION
         // ============================================
-        function formatCurrency(value) { return 'R ' + (Math.round(value || 0)).toLocaleString(); }
-        function formatNumber(value) { return (Math.round(value || 0)).toLocaleString(); }
-        function pct(actual, target) { return target > 0 ? Math.round((actual / target) * 100) : 0; }
+        function formatCurrency(value) { 
+            return 'R ' + (Math.round(value || 0)).toLocaleString(); 
+        }
         
+        function pct(actual, target) { 
+            return target > 0 ? Math.round((actual / target) * 100) : 0; 
+        }
+        
+        // Get the monthly budget from the months array (first non-zero month)
         function getMonthlyBudget(project) {
             if (!project || !project.totalIncome) return 0;
-            // Get the first non-zero monthly budget from months array
+            // Find the first non-zero monthly budget from the months array
             const monthlyBudget = project.months.find(m => m > 0);
             if (monthlyBudget) return monthlyBudget;
             return project.totalIncome / 12;
         }
         
+        // CRITICAL FIX: Daily Budget = Monthly Budget ÷ 30
+        // For DBSA Generators: monthlyBudget = 7,666,667 ÷ 30 = 255,555.57
         function getDailyBudget(project) {
             if (!project || !project.totalIncome) return 0;
             const monthlyBudget = getMonthlyBudget(project);
             return monthlyBudget / 30;
         }
         
+        function getPeriodRevenue(project, period) {
+            if (period === "Daily") return getDailyBudget(project);
+            if (period === "Weekly") return getDailyBudget(project) * 7;
+            if (period === "Monthly") return getMonthlyBudget(project);
+            if (period === "Quarterly") return getMonthlyBudget(project) * 3;
+            return project.totalIncome;
+        }
+        
+        function getPeriodTarget(project, period) { 
+            return getPeriodRevenue(project, period); 
+        }
+        
         function getProjectActual(projectName) {
             return revenueEntries.filter(r => r.projectName === projectName).reduce((sum, r) => sum + r.amount, 0);
         }
+        
+        function getProjectQualityScore(projectName) {
+            const entries = revenueEntries.filter(r => r.projectName === projectName);
+            if (entries.length === 0) return 80;
+            const avgQuality = entries.reduce((sum, r) => sum + (r.qualityScore || 80), 0) / entries.length;
+            return Math.round(avgQuality);
+        }
+        
+        function getRiskLevel(achievement) {
+            if (achievement >= 85) return { level: 'Low', class: 'risk-low', badge: 'badge-risk-low' };
+            if (achievement >= 65) return { level: 'Medium', class: 'risk-medium', badge: 'badge-risk-medium' };
+            return { level: 'High', class: 'risk-high', badge: 'badge-risk-high' };
+        }
 
         // ============================================
-        // DASHBOARD UPDATE
+        // FILTERING
         // ============================================
-        function updateDashboard() {
+        function getFilteredProjects() {
+            let filtered = projects;
+            if (activeKpiFilter !== 'all') {
+                filtered = filtered.filter(p => {
+                    const revenue = getPeriodRevenue(p, currentPeriod);
+                    if (activeKpiFilter === 'revenue') return revenue < getPeriodTarget(p, currentPeriod);
+                    if (activeKpiFilter === 'profitability') return p.margin < 15;
+                    if (activeKpiFilter === 'deadlines') return p.deadlineScore < 80;
+                    if (activeKpiFilter === 'quality') return getProjectQualityScore(p.projectName) < 80;
+                    if (activeKpiFilter === 'cash') return p.cashCollected < revenue;
+                    if (activeKpiFilter === 'actions') return p.actionStatus !== 'Closed';
+                    return true;
+                });
+            }
+            return filtered;
+        }
+        
+        function aggregateByDimension(dimension) {
+            const map = new Map();
+            getFilteredProjects().forEach(p => {
+                const key = p[dimension];
+                if (!key) return;
+                const current = map.get(key) || { name: key, actual: 0, target: 0 };
+                current.actual += getPeriodRevenue(p, currentPeriod);
+                current.target += getPeriodTarget(p, currentPeriod);
+                map.set(key, current);
+            });
+            return Array.from(map.values());
+        }
+        
+        function getTotals() {
+            const projs = getFilteredProjects();
+            const revenue = projs.reduce((s, p) => s + getPeriodRevenue(p, currentPeriod), 0);
+            const target = projs.reduce((s, p) => s + getPeriodTarget(p, currentPeriod), 0);
+            const cash = projs.reduce((s, p) => s + (p.cashCollected || 0), 0);
+            const margin = projs.reduce((s, p) => s + (getPeriodRevenue(p, currentPeriod) * p.margin / 100), 0);
+            const deadline = projs.reduce((s, p) => s + (p.deadlineScore || 0), 0);
+            const quality = projs.reduce((s, p) => s + (getProjectQualityScore(p.projectName) || 0), 0);
+            const count = Math.max(projs.length, 1);
+            
+            return {
+                revenue, target, cash, margin,
+                deadlineScore: Math.round(deadline / count),
+                qualityScore: Math.round(quality / count),
+                count
+            };
+        }
+        
+        function getDivisionMix() {
+            const map = new Map();
+            getFilteredProjects().forEach(p => {
+                map.set(p.division, (map.get(p.division) || 0) + getPeriodRevenue(p, currentPeriod));
+            });
+            return Array.from(map.entries()).map(([name, value], idx) => ({ name, value, color: DIVISION_COLORS[idx % DIVISION_COLORS.length] })).sort((a, b) => b.value - a.value);
+        }
+
+        // ============================================
+        // UI UPDATE FUNCTIONS
+        // ============================================
+        function refreshAllUI() {
             if (projects.length === 0) {
-                document.getElementById('kpiGrid').innerHTML = '<div class="empty-state"><i class="fas fa-database fa-3x mb-3"></i><p>No data available. Add projects to get started.</p></div>';
+                showEmptyStates();
                 return;
             }
+            updateGroupAtGlance();
+            updateStatsAndKPIs();
+            updateBudgetVsActual();
+            updateDivisionPerformance();
+            updatePMPerformance();
+            updatePerformanceReport();
+            updateActionReport();
+            updateOrderBook();
+            updateDailyStats();
+            updateCharts();
+            updateProjectSelectors();
+        }
+        
+        function showEmptyStates() {
+            const emptyMsg = '<div class="empty-state"><i class="fas fa-database fa-3x mb-3"></i><p>No data available. Add projects to get started.</p></div>';
+            document.getElementById('groupAtGlance').innerHTML = emptyMsg;
+            document.getElementById('kpiGrid').innerHTML = emptyMsg;
+            document.getElementById('cashKpiGrid').innerHTML = emptyMsg;
+            document.getElementById('budgetVsActualBody').innerHTML = '<tr><td colspan="6" class="text-center">No data available</td></tr>';
+            document.getElementById('divisionPerformanceBody').innerHTML = '<tr><td colspan="4" class="text-center">No data available</td></tr>';
+            document.getElementById('pmPerformanceBody').innerHTML = '<tr><td colspan="4" class="text-center">No data available</td></tr>';
+        }
+        
+        function updateGroupAtGlance() {
+            const periods = ["Daily", "Weekly", "Monthly", "Quarterly", "Yearly"];
+            const container = document.getElementById('groupAtGlance');
+            container.innerHTML = periods.map(period => {
+                const revenue = projects.reduce((s, p) => s + getPeriodRevenue(p, period), 0);
+                const target = projects.reduce((s, p) => s + getPeriodTarget(p, period), 0);
+                const achievement = pct(revenue, target);
+                const risk = getRiskLevel(achievement);
+                return `
+                    <div class="col">
+                        <div class="border rounded-3 p-3 bg-light">
+                            <div class="text-xs text-muted text-uppercase">${period}</div>
+                            <div class="h4 fw-bold mt-2">${formatCurrency(revenue)}</div>
+                            <div class="small text-muted">Target ${formatCurrency(target)}</div>
+                            <div class="mt-2 d-flex justify-content-between align-items-center">
+                                <span class="small">Achievement</span>
+                                <span class="badge ${risk.badge}">${achievement}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateStatsAndKPIs() {
+            const totals = getTotals();
+            const revenueAchievement = pct(totals.revenue, totals.target);
+            const profitability = totals.revenue > 0 ? Math.round((totals.margin / totals.revenue) * 100) : 0;
+            const cashConversion = pct(totals.cash, totals.revenue);
+            const openActions = projects.filter(p => p.actionStatus !== 'Closed').length;
+            
+            const kpiGrid = document.getElementById('kpiGrid');
+            kpiGrid.innerHTML = `
+                <div class="kpi-card" onclick="setKpiFilter('revenue')" data-filter="revenue">
+                    <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="kpi-label">Revenue (${currentPeriod})</div>
+                    <div class="kpi-value">${formatCurrency(totals.revenue)}</div>
+                    <div class="kpi-trend">Achievement: ${revenueAchievement}%</div>
+                </div>
+                <div class="kpi-card" onclick="setKpiFilter('profitability')" data-filter="profitability">
+                    <div class="kpi-icon"><i class="fas fa-chart-pie"></i></div>
+                    <div class="kpi-label">Profitability</div>
+                    <div class="kpi-value">${profitability}%</div>
+                    <div class="kpi-trend">${currentPeriod} margin</div>
+                </div>
+                <div class="kpi-card" onclick="setKpiFilter('deadlines')" data-filter="deadlines">
+                    <div class="kpi-icon"><i class="fas fa-clock"></i></div>
+                    <div class="kpi-label">Deadlines</div>
+                    <div class="kpi-value">${totals.deadlineScore}%</div>
+                    <div class="kpi-trend">On-time performance</div>
+                </div>
+                <div class="kpi-card" onclick="setKpiFilter('quality')" data-filter="quality">
+                    <div class="kpi-icon"><i class="fas fa-star"></i></div>
+                    <div class="kpi-label">Quality</div>
+                    <div class="kpi-value">${totals.qualityScore}%</div>
+                    <div class="kpi-trend">Quality score</div>
+                </div>
+            `;
+            
+            const cashGrid = document.getElementById('cashKpiGrid');
+            cashGrid.innerHTML = `
+                <div class="kpi-card" onclick="setKpiFilter('cash')" data-filter="cash">
+                    <div class="kpi-icon"><i class="fas fa-money-bill-wave"></i></div>
+                    <div class="kpi-label">Cash Collected</div>
+                    <div class="kpi-value">${formatCurrency(totals.cash)}</div>
+                    <div class="kpi-trend">Collections</div>
+                </div>
+                <div class="kpi-card" onclick="setKpiFilter('cash')" data-filter="cash">
+                    <div class="kpi-icon"><i class="fas fa-percent"></i></div>
+                    <div class="kpi-label">Cash Conversion</div>
+                    <div class="kpi-value">${cashConversion}%</div>
+                    <div class="kpi-trend">Revenue to cash</div>
+                </div>
+                <div class="kpi-card" onclick="setKpiFilter('actions')" data-filter="actions">
+                    <div class="kpi-icon"><i class="fas fa-bell"></i></div>
+                    <div class="kpi-label">Open Actions</div>
+                    <div class="kpi-value">${openActions}</div>
+                    <div class="kpi-trend">Action items</div>
+                </div>
+            `;
             
             const totalIncome = projects.reduce((s, p) => s + p.totalIncome, 0);
             const confirmedIncome = projects.filter(p => p.status === 'Confirmed').reduce((s, p) => s + p.totalIncome, 0);
             const forecastIncome = projects.filter(p => p.status === 'Forecast').reduce((s, p) => s + p.totalIncome, 0);
             const totalActual = revenueEntries.reduce((s, r) => s + r.amount, 0);
-            const groupBTYE = totalIncome - totalActual;
-            const avgDeadline = Math.round(projects.reduce((s, p) => s + p.deadlineScore, 0) / projects.length);
-            const avgQuality = Math.round(projects.reduce((s, p) => s + p.qualityScore, 0) / projects.length);
             
-            document.getElementById('kpiGrid').innerHTML = `
-                <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-line"></i></div><div class="kpi-value">${formatCurrency(totalActual)}</div><div class="kpi-label">YTD Actual Revenue</div></div>
-                <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-bar"></i></div><div class="kpi-value">${formatCurrency(totalIncome)}</div><div class="kpi-label">Total Order Book</div></div>
-                <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-calendar-week"></i></div><div class="kpi-value">${formatCurrency(groupBTYE)}</div><div class="kpi-label">Group BTYE</div></div>
-                <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-percent"></i></div><div class="kpi-value">${pct(totalActual, totalIncome)}%</div><div class="kpi-label">Achievement</div></div>
-                <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-clock"></i></div><div class="kpi-value">${avgDeadline}%</div><div class="kpi-label">Avg Deadline Score</div></div>
-                <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-star"></i></div><div class="kpi-value">${avgQuality}%</div><div class="kpi-label">Avg Quality Score</div></div>
-            `;
-            
-            // Division Performance
-            const divisionMap = new Map();
-            projects.forEach(p => {
-                const actual = getProjectActual(p.projectName);
-                const budget = getDailyBudget(p) * 365;
-                const current = divisionMap.get(p.division) || { actual: 0, target: 0 };
-                current.actual += actual;
-                current.target += budget;
-                divisionMap.set(p.division, current);
+            document.getElementById('totalProjects').innerText = projects.length;
+            document.getElementById('totalConfirmed').innerText = formatCurrency(confirmedIncome);
+            document.getElementById('totalForecast').innerText = formatCurrency(forecastIncome);
+            document.getElementById('ytdActual').innerText = formatCurrency(totalActual);
+            document.getElementById('groupBTYE').innerText = formatCurrency(totalIncome - totalActual);
+            document.getElementById('lastUpdated').innerHTML = new Date().toLocaleTimeString();
+        }
+        
+        function updateBudgetVsActual() {
+            const periods = ["Daily", "Weekly", "Monthly", "Yearly"];
+            const data = periods.map(period => {
+                const revenue = projects.reduce((s, p) => s + getPeriodRevenue(p, period), 0);
+                const target = projects.reduce((s, p) => s + getPeriodTarget(p, period), 0);
+                const achievement = pct(revenue, target);
+                const risk = getRiskLevel(achievement);
+                return { label: period, budget: target, actual: revenue, gap: target - revenue, achievement, risk };
             });
             
-            const divisionTable = document.getElementById('divisionTable');
-            divisionTable.innerHTML = Array.from(divisionMap.entries()).map(([name, data]) => `
-                <tr><td><strong>${name}</strong></td><td class="text-end">${formatCurrency(data.actual)}</td><td class="text-end">${formatCurrency(data.target)}</td><td class="text-end">${pct(data.actual, data.target)}%</td></tr>
+            const tbody = document.getElementById('budgetVsActualBody');
+            tbody.innerHTML = data.map(d => `
+                <tr class="risk-card ${d.risk.class}">
+                    <td><strong>${d.label}</strong></td>
+                    <td class="text-end">${formatCurrency(d.budget)}</td>
+                    <td class="text-end">${formatCurrency(d.actual)}</td>
+                    <td class="text-end ${d.gap > 0 ? 'variance-negative' : 'variance-positive'}">${formatCurrency(d.gap)}</td>
+                    <td class="text-end"><span class="badge ${d.risk.badge}">${d.achievement}%</span></td>
+                    <td class="text-end"><span class="badge ${d.risk.badge}">${d.risk.level}</span></td>
+                 </tr>
             `).join('');
-            
-            // Action Summary
-            const actionsList = projects.filter(p => p.deadlineScore < 70).slice(0, 5);
-            document.getElementById('actionSummary').innerHTML = actionsList.length ? actionsList.map(p => `
-                <div class="mb-2 p-2 border rounded"><strong>${p.projectName}</strong><br><small class="text-muted">Manager: ${p.manager} | Deadline: ${p.deadlineScore}%</small></div>
-            `).join('') : '<div class="empty-state"><i class="fas fa-check-circle"></i><p>All projects on track!</p></div>';
         }
         
-        function updateBudgetVsActualChart() {
-            const periods = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
-            const budgetData = [];
-            const actualData = [];
-            
-            periods.forEach(period => {
-                let budget = 0, actual = 0;
-                projects.forEach(p => {
-                    if (period === 'Daily') budget += getDailyBudget(p);
-                    else if (period === 'Weekly') budget += getDailyBudget(p) * 7;
-                    else if (period === 'Monthly') budget += getMonthlyBudget(p);
-                    else budget += p.totalIncome;
-                    actual += getProjectActual(p.projectName) / (period === 'Daily' ? 365 : period === 'Weekly' ? 52 : period === 'Monthly' ? 12 : 1);
-                });
-                budgetData.push(budget);
-                actualData.push(actual);
-            });
-            
-            if (charts.budgetChart) charts.budgetChart.destroy();
-            charts.budgetChart = new ApexCharts(document.querySelector("#budgetVsActualChart"), {
-                chart: { type: 'bar', height: 350, toolbar: { show: false } },
-                series: [{ name: 'Budget', data: budgetData }, { name: 'Actual', data: actualData }],
-                xaxis: { categories: periods },
-                colors: ['#1e3c72', '#28a745'],
-                yaxis: { labels: { formatter: v => 'R ' + (v/1000).toFixed(0) + 'k' } }
-            });
-            charts.budgetChart.render();
-            
-            // Division Pie Chart
-            const divisionMap = new Map();
-            projects.forEach(p => {
-                const actual = getProjectActual(p.projectName);
-                divisionMap.set(p.division, (divisionMap.get(p.division) || 0) + actual);
-            });
-            
-            if (charts.pieChart) charts.pieChart.destroy();
-            charts.pieChart = new ApexCharts(document.querySelector("#divisionPieChart"), {
-                chart: { type: 'pie', height: 300 },
-                series: Array.from(divisionMap.values()),
-                labels: Array.from(divisionMap.keys()),
-                colors: ['#1e3c72', '#2a5298', '#3b6cb0', '#4c86c8']
-            });
-            charts.pieChart.render();
-            
-            // Deadline Chart
-            const deadlineData = projects.slice(0, 10).map(p => ({ x: p.projectName.substring(0, 15), y: p.deadlineScore }));
-            if (charts.deadlineChart) charts.deadlineChart.destroy();
-            charts.deadlineChart = new ApexCharts(document.querySelector("#deadlineChart"), {
-                chart: { type: 'bar', height: 250, toolbar: { show: false } },
-                series: [{ name: 'Deadline Score', data: deadlineData }],
-                xaxis: { type: 'category' },
-                colors: ['#ffc107']
-            });
-            charts.deadlineChart.render();
-            
-            // Quality Chart
-            const qualityData = projects.slice(0, 10).map(p => ({ x: p.projectName.substring(0, 15), y: p.qualityScore }));
-            if (charts.qualityChart) charts.qualityChart.destroy();
-            charts.qualityChart = new ApexCharts(document.querySelector("#qualityChart"), {
-                chart: { type: 'bar', height: 250, toolbar: { show: false } },
-                series: [{ name: 'Quality Score', data: qualityData }],
-                xaxis: { type: 'category' },
-                colors: ['#17a2b8']
-            });
-            charts.qualityChart.render();
-        }
-        
-        function updateProjectsTable() {
-            const tbody = document.getElementById('projectsTable');
-            tbody.innerHTML = projects.map(p => {
-                const progress = pct(getProjectActual(p.projectName), p.totalIncome);
-                return `合适
-                    <td>${p.division}</td><td>${p.manager}</td><td><strong>${p.projectName}</strong></td>
-                    <td><span class="badge ${p.status === 'Confirmed' ? 'bg-success' : 'bg-warning'}">${p.status}</span></td>
-                    <td class="text-end">${formatCurrency(p.totalIncome)}</td>
-                    <td class="text-end">${p.margin}%</td>
-                    <td class="text-end">${p.deadlineScore}%</td><td class="text-end">${p.qualityScore}%</td>
-                    <td><div class="progress-bar-custom"><div class="progress-fill bg-primary" style="width: ${progress}%"></div></div><small>${progress}%</small></td>
-                \)`;
+        function updateDivisionPerformance() {
+            const divisions = aggregateByDimension('division');
+            const tbody = document.getElementById('divisionPerformanceBody');
+            if (divisions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center">No division data available</td></tr>';
+                return;
+            }
+            tbody.innerHTML = divisions.map(d => {
+                const score = pct(d.actual, d.target);
+                const risk = getRiskLevel(score);
+                return `<tr><td><strong>${d.name}</strong></td><td class="text-end">${formatCurrency(d.actual)}</td><td class="text-end">${formatCurrency(d.target)}</td><td class="text-end"><span class="badge ${risk.badge}">${score}%</span></td></tr>`;
             }).join('');
+        }
+        
+        function updatePMPerformance() {
+            const pms = aggregateByDimension('manager');
+            const tbody = document.getElementById('pmPerformanceBody');
+            if (pms.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center">No PM data available</td></tr>';
+                return;
+            }
+            tbody.innerHTML = pms.slice(0, 8).map(pm => {
+                const score = pct(pm.actual, pm.target);
+                const risk = getRiskLevel(score);
+                return `<tr><td><strong>${pm.name}</strong></td><td class="text-end">${formatCurrency(pm.actual)}</td><td class="text-end">${formatCurrency(pm.target)}</td><td class="text-end"><span class="badge ${risk.badge}">${score}%</span></td></tr>`;
+            }).join('');
+        }
+        
+        function updatePerformanceReport() {
+            const filtered = getFilteredProjects();
+            const tbody = document.getElementById('performanceTableBody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No project data available</td></tr>';
+                return;
+            }
+            tbody.innerHTML = filtered.map(p => {
+                const qualityScore = getProjectQualityScore(p.projectName);
+                return `
+                    <tr>
+                        <td><strong>${p.projectName}</strong><br><small class="text-muted">${p.division} • ${p.manager}</small></td>
+                        <td class="text-end">${formatCurrency(getPeriodRevenue(p, currentPeriod))}</td>
+                        <td class="text-end">${formatCurrency(getPeriodTarget(p, currentPeriod))}</td>
+                        <td class="text-end"><span class="badge ${getRiskLevel(p.margin).badge}">${p.margin}%</span></td>
+                        <td class="text-end"><span class="badge ${getRiskLevel(p.deadlineScore).badge}">${p.deadlineScore}%</span></td>
+                        <td class="text-end"><span class="badge ${getRiskLevel(qualityScore).badge}">${qualityScore}%</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function updateActionReport() {
+            const actions = getFilteredProjects().filter(p => p.actionStatus !== 'Closed').sort((a, b) => a.deadlineScore - b.deadlineScore);
+            const tbody = document.getElementById('actionReportBody');
+            if (actions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">No open actions</td></tr>';
+            } else {
+                tbody.innerHTML = actions.map(p => `
+                    <tr>
+                        <td><strong>${p.projectName}</strong><br><small>${p.division} • ${p.manager}</small></td>
+                        <td>${p.actionOwner || 'Unassigned'}</td>
+                        <td><span class="badge ${p.actionDue && new Date(p.actionDue) < new Date() ? 'bg-danger' : 'bg-warning'}">${p.actionDue || 'Not set'}</span></td>
+                        <td><span class="badge ${p.actionStatus === 'Escalated' ? 'bg-danger' : p.actionStatus === 'In Progress' ? 'bg-warning' : 'bg-success'}">${p.actionStatus || 'Open'}</span></td>
+                        <td>${p.recovery || 'No recovery plan'}</td>
+                    </tr>
+                `).join('');
+            }
+            
+            const summaryDiv = document.getElementById('actionSummaryBody');
+            if (actions.length === 0) {
+                summaryDiv.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle"></i><p>All actions completed!</p></div>';
+            } else {
+                summaryDiv.innerHTML = actions.slice(0, 4).map(p => `
+                    <div class="border rounded-3 p-3 mb-3 bg-light">
+                        <div class="d-flex justify-content-between">
+                            <strong>${p.projectName}</strong>
+                            <span class="badge ${p.actionStatus === 'Escalated' ? 'bg-danger' : 'bg-warning'}">${p.actionStatus}</span>
+                        </div>
+                        <div class="small text-muted mt-1">Owner: ${p.actionOwner || 'Unassigned'}</div>
+                        <div class="small">Due: ${p.actionDue || 'Not set'}</div>
+                        <div class="small mt-2">${p.recovery || 'No recovery plan'}</div>
+                    </div>
+                `).join('');
+            }
         }
         
         function updateOrderBook() {
             const tbody = document.getElementById('orderBookTable');
+            if (projects.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center">No projects available</td></tr>';
+                return;
+            }
             tbody.innerHTML = projects.map(p => {
                 const actual = getProjectActual(p.projectName);
                 const gp = Math.round(p.totalIncome * p.margin / 100);
-                return `合适
-                    <td>${p.division}</td><td>${p.manager}</td><td><strong>${p.projectName}</strong></td>
-                    <td><span class="badge ${p.status === 'Confirmed' ? 'bg-success' : 'bg-warning'}">${p.status}</span></td>
-                    <td class="text-end">${formatCurrency(p.totalIncome)}</td>
-                    <td class="text-end">${formatCurrency(actual)}</td>
-                    <td class="text-end">${formatCurrency(p.totalIncome - actual)}</td>
-                    <td class="text-end">${p.margin}%</td>
-                    <td class="text-end">${formatCurrency(gp)}</td>
-                \)`;
+                return `
+                    <tr>
+                        <td>${p.division}</td>
+                        <td>${p.manager}</td>
+                        <td><strong>${p.projectName}</strong></td>
+                        <td><span class="badge ${p.status === 'Confirmed' ? 'bg-success' : 'bg-warning'}">${p.status}</span></td>
+                        <td class="text-end">${formatCurrency(p.totalIncome)}</td>
+                        <td class="text-end">${formatCurrency(actual)}</td>
+                        <td class="text-end">${formatCurrency(p.totalIncome - actual)}</td>
+                        <td class="text-end">${p.margin}%</td>
+                        <td class="text-end">${formatCurrency(gp)}</td>
+                    </tr>
+                `;
             }).join('');
-        }
-        
-        function updatePMRanking() {
-            const managerMap = new Map();
-            projects.forEach(p => {
-                const budget = getDailyBudget(p);
-                const actual = getProjectActual(p.projectName) / 365;
-                const current = managerMap.get(p.manager) || { budget: 0, actual: 0, projects: 0, division: p.division };
-                current.budget += budget;
-                current.actual += actual;
-                current.projects++;
-                managerMap.set(p.manager, current);
-            });
-            
-            const rankings = Array.from(managerMap.entries()).map(([name, data]) => ({
-                name, division: data.division, projects: data.projects,
-                budget: data.budget, actual: data.actual,
-                achievement: data.budget > 0 ? (data.actual / data.budget) * 100 : 0
-            })).sort((a, b) => b.achievement - a.achievement);
-            
-            const tbody = document.getElementById('pmRankingTable');
-            tbody.innerHTML = rankings.slice(0, 15).map((r, i) => `
-                 <tr>
-                    <td><strong>#${i+1}</strong></td><td><strong>${r.name}</strong></td><td>${r.division}</td>
-                    <td>${r.projects}</td><td class="text-end">${formatCurrency(r.budget)}</td>
-                    <td class="text-end">${formatCurrency(r.actual)}</td>
-                    <td class="text-end"><div class="progress-bar-custom"><div class="progress-fill ${r.achievement >= 100 ? 'bg-success' : 'bg-warning'}" style="width: ${Math.min(r.achievement, 100)}%"></div></div>${r.achievement.toFixed(1)}%</td>
-                    <td><span class="badge ${r.achievement >= 100 ? 'bg-success' : 'bg-warning'}">${r.achievement >= 100 ? 'On Target' : 'Below Target'}</span></td>
-                 </tr>
-            `).join('');
         }
         
         function updateDailyStats() {
@@ -792,16 +1000,63 @@
             const recent = [...revenueEntries].reverse().slice(0, 20);
             const recentTable = document.getElementById('recentRevenueTable');
             recentTable.innerHTML = recent.map(r => `
-                 <tr>
+                <tr>
                     <td>${r.date}</td><td>${r.division}</td><td>${r.manager}</td><td>${r.projectName}</td>
-                    <td class="text-end">${formatCurrency(r.amount)}</td><td class="text-end">${formatCurrency(r.dailyBudget)}</td>
+                    <td class="text-end">${formatCurrency(r.amount)}</td>
+                    <td class="text-end">${formatCurrency(r.dailyBudget)}</td>
                     <td class="text-end ${r.amount - r.dailyBudget >= 0 ? 'variance-positive' : 'variance-negative'}">${formatCurrency(r.amount - r.dailyBudget)}</td>
-                 </tr>
+                    <td class="text-end">${r.qualityScore || 80}%</td>
+                </tr>
             `).join('');
         }
         
+        function updateCharts() {
+            const divisions = aggregateByDimension('division');
+            const divisionNames = divisions.map(d => d.name);
+            const divisionActual = divisions.map(d => d.actual);
+            const divisionTarget = divisions.map(d => d.target);
+            
+            if (divisions.length === 0) {
+                if (charts.revenueChart) charts.revenueChart.destroy();
+                if (charts.pieChart) charts.pieChart.destroy();
+                if (charts.areaChart) charts.areaChart.destroy();
+                return;
+            }
+            
+            if (charts.revenueChart) charts.revenueChart.destroy();
+            charts.revenueChart = new ApexCharts(document.querySelector("#revenueChart"), {
+                chart: { type: 'bar', height: 350, toolbar: { show: true } },
+                series: [{ name: 'Target', data: divisionTarget }, { name: 'Actual', data: divisionActual }],
+                xaxis: { categories: divisionNames, title: { text: 'Division' } },
+                yaxis: { title: { text: 'Amount (R)' }, labels: { formatter: v => 'R ' + (v/1000).toFixed(0) + 'k' } },
+                colors: ['#1e3c72', '#28a745'],
+                tooltip: { y: { formatter: v => 'R ' + v.toLocaleString() } }
+            });
+            charts.revenueChart.render();
+            
+            const divisionMix = getDivisionMix();
+            if (charts.pieChart) charts.pieChart.destroy();
+            charts.pieChart = new ApexCharts(document.querySelector("#divisionPieChart"), {
+                chart: { type: 'pie', height: 350 },
+                series: divisionMix.map(d => d.value),
+                labels: divisionMix.map(d => d.name),
+                colors: divisionMix.map(d => d.color),
+                tooltip: { y: { formatter: v => 'R ' + v.toLocaleString() } }
+            });
+            charts.pieChart.render();
+            
+            if (charts.areaChart) charts.areaChart.destroy();
+            charts.areaChart = new ApexCharts(document.querySelector("#performanceAreaChart"), {
+                chart: { type: 'area', height: 350, toolbar: { show: true } },
+                series: [{ name: 'Target', data: divisionTarget }, { name: 'Actual', data: divisionActual }],
+                xaxis: { categories: divisionNames },
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.3 } },
+                colors: ['#94a3b8', '#0f172a']
+            });
+            charts.areaChart.render();
+        }
+        
         function updateProjectSelectors() {
-            // Populate manager dropdown with unique managers
             const managerSelect = document.getElementById('revManager');
             const sortedManagers = [...PROJECT_MANAGERS].sort();
             managerSelect.innerHTML = '<option value="">Select Manager</option>' + sortedManagers.map(m => `<option value="${m}">${m}</option>`).join('');
@@ -814,11 +1069,8 @@
                 document.getElementById('revProject').innerHTML = '<option value="">Select Project</option>';
                 return;
             }
-            
-            // Filter projects by division and get unique managers
             const filteredProjects = projects.filter(p => p.division === division);
             const uniqueManagers = [...new Set(filteredProjects.map(p => p.manager))].sort();
-            
             const managerSelect = document.getElementById('revManager');
             managerSelect.innerHTML = '<option value="">Select Manager</option>' + uniqueManagers.map(m => `<option value="${m}">${m}</option>`).join('');
             document.getElementById('revProject').innerHTML = '<option value="">Select Project</option>';
@@ -827,24 +1079,25 @@
         function filterProjectsByManager() {
             const division = document.getElementById('revDivision').value;
             const manager = document.getElementById('revManager').value;
-            
             if (!division || !manager) {
                 document.getElementById('revProject').innerHTML = '<option value="">Select Project</option>';
                 return;
             }
-            
             const filteredProjects = projects.filter(p => p.division === division && p.manager === manager);
             const projectSelect = document.getElementById('revProject');
             projectSelect.innerHTML = '<option value="">Select Project</option>' + filteredProjects.map(p => `<option value="${p.projectName}">${p.projectName}</option>`).join('');
         }
         
+        // CRITICAL FIX: Update daily budget using monthly budget ÷ 30
         function updateDailyBudget() {
             const projectName = document.getElementById('revProject').value;
             const project = projects.find(p => p.projectName === projectName);
             
             if (project) {
-                const dailyBudget = getDailyBudget(project);
+                const monthlyBudget = getMonthlyBudget(project);
+                const dailyBudget = monthlyBudget / 30;
                 document.getElementById('revBudget').value = formatCurrency(dailyBudget);
+                console.log(`✅ Project: ${project.projectName}, Monthly Budget: ${formatCurrency(monthlyBudget)}, Daily Budget: ${formatCurrency(dailyBudget)}`);
             } else {
                 document.getElementById('revBudget').value = formatCurrency(0);
             }
@@ -869,6 +1122,7 @@
                 projectName: document.getElementById('revProject').value,
                 amount: parseFloat(document.getElementById('revAmount').value),
                 dailyBudget: parseFloat(document.getElementById('revBudget').value.replace(/[^0-9.-]/g, '')) || 0,
+                qualityScore: parseFloat(document.getElementById('revQuality').value) || 80,
                 notes: document.getElementById('revNotes').value
             };
             
@@ -883,12 +1137,31 @@
                 showStatus('Revenue saved successfully!', 'success');
                 document.getElementById('revAmount').value = '';
                 document.getElementById('revNotes').value = '';
+                document.getElementById('revQuality').value = '80';
                 await loadAllData();
             } else {
                 showStatus('Error: ' + (result.error || 'Unknown error'), 'error');
             }
             hideLoading();
         }
+        
+        // ============================================
+        // KPI FILTER FUNCTIONS
+        // ============================================
+        function setKpiFilter(filter) {
+            activeKpiFilter = filter === activeKpiFilter ? 'all' : filter;
+            document.getElementById('activeKpiBadge').innerText = activeKpiFilter === 'all' ? 'All records' : activeKpiFilter;
+            document.getElementById('clearKpiFilter').style.display = activeKpiFilter === 'all' ? 'none' : 'inline-block';
+            
+            document.querySelectorAll('.kpi-card').forEach(card => {
+                if (card.dataset.filter === activeKpiFilter) card.classList.add('active');
+                else card.classList.remove('active');
+            });
+            
+            refreshAllUI();
+        }
+        
+        function clearKpiFilter() { setKpiFilter('all'); }
         
         // ============================================
         // MAIN LOAD FUNCTION
@@ -905,25 +1178,15 @@
                 if (projects.length > 0) {
                     updateConnectionStatus(true);
                     showStatus(`✅ Loaded ${projects.length} projects and ${revenueEntries.length} revenue entries`, 'success');
+                    console.log('Sample project data:', projects[0]);
+                    console.log(`DBSA Generators Monthly Budget: ${formatCurrency(getMonthlyBudget(projects.find(p => p.projectName === 'DBSA Generators')))}`);
+                    console.log(`DBSA Generators Daily Budget: ${formatCurrency(getDailyBudget(projects.find(p => p.projectName === 'DBSA Generators')))}`);
                 } else {
                     updateConnectionStatus('no-data');
                     showStatus('Connected - No data found. Add projects to get started.', 'info');
                 }
                 
-                updateDashboard();
-                updateBudgetVsActualChart();
-                updateProjectsTable();
-                updateOrderBook();
-                updatePMRanking();
-                updateDailyStats();
-                updateProjectSelectors();
-                
-                document.getElementById('totalProjects').innerText = projects.length;
-                document.getElementById('totalConfirmed').innerText = formatCurrency(projects.filter(p => p.status === 'Confirmed').reduce((s,p) => s + p.totalIncome, 0));
-                document.getElementById('totalForecast').innerText = formatCurrency(projects.filter(p => p.status === 'Forecast').reduce((s,p) => s + p.totalIncome, 0));
-                document.getElementById('ytdActual').innerText = formatCurrency(revenueEntries.reduce((s,r) => s + r.amount, 0));
-                document.getElementById('groupBTYE').innerText = formatCurrency(projects.reduce((s,p) => s + p.totalIncome, 0) - revenueEntries.reduce((s,r) => s + r.amount, 0));
-                document.getElementById('lastUpdated').innerHTML = new Date().toLocaleTimeString();
+                refreshAllUI();
                 
             } catch (error) {
                 console.error('Load error:', error);
@@ -1004,6 +1267,28 @@
             if (btn) btn.classList.add('active');
         }
         
+        function addPeriodSelector() {
+            const container = document.querySelector('#dashboard .kpi-grid');
+            if (container && !document.getElementById('periodSelect')) {
+                const periodDiv = document.createElement('div');
+                periodDiv.className = 'd-flex justify-content-end mb-3';
+                periodDiv.innerHTML = `
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="fw-semibold mb-0">View:</label>
+                        <select id="periodSelect" class="form-select w-auto" onchange="changePeriod(this.value)">
+                            ${PERIODS.map(p => `<option value="${p}" ${p === currentPeriod ? 'selected' : ''}>${p}</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+                container.parentNode.insertBefore(periodDiv, container);
+            }
+        }
+        
+        function changePeriod(period) {
+            currentPeriod = period;
+            refreshAllUI();
+        }
+        
         // Expose global functions
         window.showTab = showTab;
         window.loadAllData = loadAllData;
@@ -1014,10 +1299,14 @@
         window.calculateVariance = calculateVariance;
         window.exportFullReport = exportFullReport;
         window.exportOrderBook = exportOrderBook;
+        window.setKpiFilter = setKpiFilter;
+        window.clearKpiFilter = clearKpiFilter;
+        window.changePeriod = changePeriod;
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadAllData();
+            addPeriodSelector();
         });
     </script>
 </body>
