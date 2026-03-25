@@ -15,7 +15,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
-        /* Same CSS as before - keep all styles */
+        /* Keep all existing styles - same as before */
         :root {
             --primary: #1e3c72;
             --secondary: #2a5298;
@@ -381,15 +381,15 @@
                 </div>
                 <div class="row mt-3"><div class="col-12"><button class="btn btn-primary rounded-pill px-4" onclick="submitInvoice()"><i class="fas fa-save me-2"></i>Save Invoice</button></div></div>
                 <hr><h6 class="fw-semibold">Today's Invoices Summary</h6>
-                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>  </table></div>
+                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>   </table></div>
             </div></div>
         </div>
         
         <!-- Order Book Tab -->
-        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody> </table></div></div></div></div>
+        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>   </table></div></div></div></div>
         
         <!-- Performance Tab -->
-        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody> </table></div></div></div></div>
+        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>   </table></div></div></div></div>
     </div>
     <div class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i></div>
 
@@ -398,7 +398,33 @@
         // IMPORTANT: Replace this URL with your deployed Apps Script Web App URL
         const CONFIG = { SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxypYFk7YCFkeYLkqS-ucnBOVgnWlG8x1luxaqzGJ868Ln3VAPw8sze9NhTJsjIKjQIfA/exec' };
         
-        let projects = [], dailyEntries = [], invoices = [], uniqueManagers = new Set();
+        // Unique Project Managers List (no repeats)
+        const PROJECT_MANAGERS = [
+            "Moses", "Johan", "Siyanda", "Dave", "James", "Rayman", "Timothy", 
+            "Roads Site Agent COT", "Civil Site Agent", "Roads Site Agent CPT", "Brian", 
+            "EL CM", "Stanley", "Tony", "Govern", "Graham", "Ronald", "Petros", "Elroy", 
+            "Mesh", "Vusi", "Tinotenda", "Sydney", "Andrew", "Phillip", "Moeti"
+        ];
+        
+        // Unique Project Names List (no repeats)
+        const PROJECT_NAMES = [
+            "DBSA Generators", "DBSA Rooiwal", "Joe Gqabi", "Temba", "Midvaal", "Coega", 
+            "KZN General Buildings", "Tshwane", "Public Works Limpopo", "Limpopo Eskom Substation Ephraim Mogale", 
+            "Naizna", "Cape Town", "COT Streetlights", "COT Electrification", "COT Metering", 
+            "COE Streetlights", "Msunduzi E50", "Msunduzi Streetlights", "Msunduzi E33", "Msunduzi E47", 
+            "Moqhaka Streetlights", "Moqhaka Metering", "Centlec CD11", "Centlec Transformers CD32", 
+            "Centlec CD45", "Midvaal Mechanical", "Eskom SPU", "Eskom FSOU Substation", "Eskom ECOU", 
+            "Eskom LOU General Buildings", "Eskom KZN Minor Reticulation", "Randwest Electrical", 
+            "Randwest Roads & Stormwater", "Randwest Water rand sanitation", "Randwest Bulk", "RAL", 
+            "Stellenbosh", "Liquid ECPG", "Liquid ECSOD", "Liquid Gauteng SOD", "Telkom", "MTN", 
+            "Centlec", "Eskom Harvard", "City Power", "Umhlathuze Municipality", "Eskom WC", 
+            "COE Buildings", "Uthukela", "Kgetleng River", "Ray Nkonyeni Facility", 
+            "Ray Nkonyeni Electrical Material", "Ray Nkonyeni Mast", "Ray Nkonyeni Meter Reading", 
+            "Ramotshere Electrical Supplies", "Newcastle Substations", "Ubuntu", "IDT North West Buidlings", 
+            "Amajuba Generator", "uPhongolo", "Abaquilisi Battery Supplies", "Abaquilisi Streetlights"
+        ];
+        
+        let projects = [], dailyEntries = [], invoices = [];
         let currentDashboardPeriod = 'daily', currentRevenueChartPeriod = 'daily', currentPieChartPeriod = 'daily', currentManagerPeriod = 'daily';
         
         const monthLabels = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
@@ -412,15 +438,45 @@
         function initQualityStars() {
             const stars = document.querySelectorAll('#qualityStars .rating-star');
             stars.forEach(star => {
-                star.addEventListener('click', () => { const score = parseInt(star.dataset.score); document.getElementById('qualityScoreInput').value = score; stars.forEach(s => s.classList.remove('active')); stars.forEach(s => { if(parseInt(s.dataset.score) <= score) s.classList.add('active'); }); });
+                star.addEventListener('click', () => { 
+                    const score = parseInt(star.dataset.score); 
+                    document.getElementById('qualityScoreInput').value = score; 
+                    stars.forEach(s => s.classList.remove('active')); 
+                    stars.forEach(s => { if(parseInt(s.dataset.score) <= score) s.classList.add('active'); }); 
+                });
                 if(parseInt(star.dataset.score) <= 80) star.classList.add('active');
+            });
+        }
+        
+        function populateDropdownsStatic() {
+            const managerSelects = ['revManager', 'invManager', 'projectManager'];
+            managerSelects.forEach(id => { 
+                let select = document.getElementById(id); 
+                if(select) {
+                    let html = '<option value="">Select Manager</option>';
+                    PROJECT_MANAGERS.forEach(m => html += `<option value="${m}">${m}</option>`);
+                    select.innerHTML = html;
+                }
+            });
+            
+            const projectSelects = ['revProjectName', 'invProjectName'];
+            projectSelects.forEach(id => { 
+                let select = document.getElementById(id); 
+                if(select) {
+                    let html = '<option value="">Select Project</option>';
+                    PROJECT_NAMES.forEach(p => html += `<option value="${p}">${p}</option>`);
+                    select.innerHTML = html;
+                }
             });
         }
         
         function updateOrderBookSummary() {
             const confirmedTotal = projects.filter(p => p.Status === 'Confirmed').reduce((s, p) => s + p.TotalIncome, 0);
             const forecastTotal = projects.filter(p => p.Status === 'Forecast').reduce((s, p) => s + p.TotalIncome, 0);
-            const mtdActual = dailyEntries.filter(e => new Date(e.date).getMonth() === new Date().getMonth()).reduce((s, e) => s + e.amount, 0);
+            const mtdActual = dailyEntries.filter(e => {
+                if(!e.date) return false;
+                return new Date(e.date).getMonth() === new Date().getMonth();
+            }).reduce((s, e) => s + e.amount, 0);
             document.getElementById('totalConfirmed').innerHTML = formatCurrency(confirmedTotal);
             document.getElementById('totalForecast').innerHTML = formatCurrency(forecastTotal);
             document.getElementById('totalOrderBook').innerHTML = formatCurrency(confirmedTotal + forecastTotal);
@@ -538,7 +594,7 @@
         function updateManagerChart() {
             let mgrData = {};
             let daysMultiplier = { daily: 1, weekly: 7, monthly: 22, yearly: 260 }[currentManagerPeriod];
-            uniqueManagers.forEach(m => { mgrData[m] = { budget: 0, actual: 0 }; });
+            PROJECT_MANAGERS.forEach(m => { mgrData[m] = { budget: 0, actual: 0 }; });
             projects.forEach(p => { let monthIdx = (new Date().getMonth() + 10) % 12; let dailyBudget = (p.months?.[monthIdx] || p.TotalIncome/12) / 22; if(mgrData[p.Manager]) mgrData[p.Manager].budget += dailyBudget * daysMultiplier; });
             let cutoffDate = new Date(); cutoffDate.setDate(cutoffDate.getDate() - daysMultiplier + 1);
             dailyEntries.forEach(e => { if(new Date(e.date) >= cutoffDate && mgrData[e.manager]) mgrData[e.manager].actual += e.amount; });
@@ -550,22 +606,39 @@
             let headers = '<th>Division</th><th>Manager</th><th>Project</th><th>Status</th><th>Total Income</th><th>Gross Profit</th>';
             document.getElementById('orderBookHeader').innerHTML = headers;
             let body = '';
-            projects.forEach(p => { let gp = p.TotalIncome * (p.Margin / 100); body += `tr<td>${p.Division || 'Onpoint'}</td><td>${p.Manager}</td><td><strong>${p.ProjectName}</strong></td><td><span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status}</span></td><td>${formatCurrency(p.TotalIncome)}</td><td>${formatCurrency(gp)}</td></tr>`; });
+            projects.forEach(p => { let gp = p.TotalIncome * (p.Margin / 100); body += `tr
+                 <td>${p.Division || 'Onpoint'}</td>
+                 <td>${p.Manager}</td>
+                 <td><strong>${p.ProjectName}</strong></td>
+                 <td><span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status}</span></td>
+                 <td>${formatCurrency(p.TotalIncome)}</td>
+                 <td>${formatCurrency(gp)}</td>
+             </tr>`; });
             document.getElementById('orderBookBody').innerHTML = body || '<tr><td colspan="6">No projects loaded</td></tr>';
         }
         
         function updatePerformanceTable() {
             let mgrMap = {};
-            projects.forEach(p => { if(!mgrMap[p.Manager]) mgrMap[p.Manager] = { budget: 0, actual: 0, quality: 0, safety: 0, count: 0 }; mgrMap[p.Manager].budget += p.TotalIncome; });
+            PROJECT_MANAGERS.forEach(m => { mgrMap[m] = { budget: 0, actual: 0, quality: 0, safety: 0, count: 0 }; });
+            projects.forEach(p => { if(mgrMap[p.Manager]) mgrMap[p.Manager].budget += p.TotalIncome; });
             dailyEntries.forEach(e => { if(mgrMap[e.manager]) { mgrMap[e.manager].actual += e.amount; mgrMap[e.manager].quality += e.quality || 80; mgrMap[e.manager].safety += e.safety || 0; mgrMap[e.manager].count++; } });
             let html = '';
             for(let m in mgrMap) {
+                if(mgrMap[m].budget === 0 && mgrMap[m].actual === 0) continue;
                 let ach = mgrMap[m].budget > 0 ? (mgrMap[m].actual / mgrMap[m].budget) * 100 : 0;
                 let avgQuality = mgrMap[m].count ? mgrMap[m].quality / mgrMap[m].count : 80;
                 let totalIncidents = mgrMap[m].safety;
                 let statusClass = ach >= 80 ? 'badge-success' : ach >= 50 ? 'badge-warning' : 'badge-danger';
                 let statusText = ach >= 80 ? 'On Track' : ach >= 50 ? 'At Risk' : 'Behind';
-                html += `<tr><td><strong>${m}</strong></td><td>${formatCurrency(mgrMap[m].actual)}</td><td>${formatCurrency(mgrMap[m].budget)}</td><td><div class="progress-bar-custom w-100"><div class="progress-fill ${ach >= 80 ? 'green' : ach >= 50 ? 'orange' : 'red'}" style="width:${Math.min(100, ach)}%"></div></div> ${ach.toFixed(0)}%</td><td><span class="badge-info">${Math.round(avgQuality)}%</span></td><td><span class="${totalIncidents === 0 ? 'badge-success' : totalIncidents <= 2 ? 'badge-warning' : 'badge-danger'}">${totalIncidents} incidents</span></td><td><span class="${statusClass}">${statusText}</span></td></tr>`;
+                html += `<tr>
+                    <td><strong>${m}</strong></td>
+                    <td>${formatCurrency(mgrMap[m].actual)}</td>
+                    <td>${formatCurrency(mgrMap[m].budget)}</td>
+                    <td><div class="progress-bar-custom w-100"><div class="progress-fill ${ach >= 80 ? 'green' : ach >= 50 ? 'orange' : 'red'}" style="width:${Math.min(100, ach)}%"></div></div> ${ach.toFixed(0)}%</td>
+                    <td><span class="badge-info">${Math.round(avgQuality)}%</span></td>
+                    <td><span class="${totalIncidents === 0 ? 'badge-success' : totalIncidents <= 2 ? 'badge-warning' : 'badge-danger'}">${totalIncidents} incidents</span></td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                </tr>`;
             }
             document.querySelector('#perfTable tbody').innerHTML = html || '<tr><td colspan="7">No data</td></tr>';
         }
@@ -574,13 +647,6 @@
             let today = new Date().toISOString().split('T')[0];
             let html = invoices.filter(i => i.date === today).map(inv => `<tr><td>${inv.projectName}</td><td>${inv.manager}</td><td class="fw-bold">${formatCurrency(inv.amount)}</td><td>${new Date().toLocaleTimeString()}</td></tr>`).join('');
             document.querySelector('#todayInvoicesTable tbody').innerHTML = html || '<tr><td colspan="4">No invoices today</td></tr>';
-        }
-        
-        function populateDropdowns() {
-            const managerList = Array.from(uniqueManagers).sort();
-            ['revManager', 'invManager', 'projectManager'].forEach(id => { let select = document.getElementById(id); if(select) select.innerHTML = '<option value="">Select Manager</option>' + managerList.map(m => `<option value="${m}">${m}</option>`).join(''); });
-            const projectList = projects.map(p => p.ProjectName).sort();
-            ['revProjectName', 'invProjectName'].forEach(id => { let select = document.getElementById(id); if(select) select.innerHTML = '<option value="">Select Project</option>' + projectList.map(p => `<option value="${p}">${p}</option>`).join(''); });
         }
         
         function calculateVariance() {
@@ -601,19 +667,82 @@
         }
         
         function submitDailyRevenueWithQuality() {
-            let revenue = { date: document.getElementById('revDate').value, manager: document.getElementById('revManager').value, projectName: document.getElementById('revProjectName').value, amount: parseFloat(document.getElementById('revAmount').value) || 0, quality: parseInt(document.getElementById('qualityScoreInput').value) || 80, safety: parseInt(document.getElementById('safetyIncidentsInput').value) || 0 };
+            let revenue = { 
+                date: document.getElementById('revDate').value, 
+                manager: document.getElementById('revManager').value, 
+                projectName: document.getElementById('revProjectName').value, 
+                amount: parseFloat(document.getElementById('revAmount').value) || 0, 
+                quality: parseInt(document.getElementById('qualityScoreInput').value) || 80, 
+                safety: parseInt(document.getElementById('safetyIncidentsInput').value) || 0 
+            };
             if(!revenue.manager || !revenue.projectName || revenue.amount <= 0) { alert('Please fill all fields'); return; }
-            dailyEntries.push(revenue); refreshAllUI(); alert('Revenue & Performance saved');
-            document.getElementById('revAmount').value = ''; document.getElementById('safetyIncidentsInput').value = '0';
+            
+            // Send to Google Sheets
+            fetch(CONFIG.SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'addRevenue', data: revenue })
+            })
+            .then(res => res.json())
+            .then(result => {
+                if(result.success) {
+                    alert('Revenue saved to Google Sheets!');
+                    loadAllData();
+                } else {
+                    alert('Error saving: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                console.error('Save error:', err);
+                alert('Error saving to Google Sheets. Saved locally only.');
+                dailyEntries.push(revenue);
+                refreshAllUI();
+            });
+            document.getElementById('revAmount').value = ''; 
+            document.getElementById('safetyIncidentsInput').value = '0';
         }
         
         function submitInvoice() {
             let invoice = { date: document.getElementById('invDate').value, manager: document.getElementById('invManager').value, projectName: document.getElementById('invProjectName').value, amount: parseFloat(document.getElementById('invAmount').value) || 0 };
             if(!invoice.manager || !invoice.projectName || invoice.amount <= 0) { alert('Please fill all fields'); return; }
-            invoices.push(invoice); refreshAllUI(); alert('Invoice saved'); document.getElementById('invAmount').value = '';
+            
+            fetch(CONFIG.SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'addInvoice', data: invoice })
+            })
+            .then(res => res.json())
+            .then(result => {
+                if(result.success) {
+                    alert('Invoice saved to Google Sheets!');
+                    loadAllData();
+                } else {
+                    alert('Error saving: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                console.error('Save error:', err);
+                alert('Error saving to Google Sheets. Saved locally only.');
+                invoices.push(invoice);
+                refreshAllUI();
+            });
+            document.getElementById('invAmount').value = '';
         }
         
-        function refreshAllUI() { updateDashboard(); updateOrderBook(); updateManagerChart(); updateRevenueChart(); updatePieChart(); updatePerformanceTable(); updateTodayInvoicesTable(); populateDropdowns(); document.getElementById('revDate').value = new Date().toISOString().split('T')[0]; document.getElementById('invDate').value = new Date().toISOString().split('T')[0]; if(document.getElementById('revManager')) document.getElementById('revManager').addEventListener('change', updateDailyBudget); }
+        function refreshAllUI() { 
+            updateDashboard(); 
+            updateOrderBook(); 
+            updateManagerChart(); 
+            updateRevenueChart(); 
+            updatePieChart(); 
+            updatePerformanceTable(); 
+            updateTodayInvoicesTable(); 
+            document.getElementById('revDate').value = new Date().toISOString().split('T')[0]; 
+            document.getElementById('invDate').value = new Date().toISOString().split('T')[0]; 
+            if(document.getElementById('revManager')) document.getElementById('revManager').addEventListener('change', updateDailyBudget);
+        }
         
         async function loadAllData() {
             showLoading("Fetching live data from Google Sheets...");
@@ -621,24 +750,41 @@
                 const projectsRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getProjects`, { method: 'GET', mode: 'cors' });
                 if (!projectsRes.ok) throw new Error(`HTTP ${projectsRes.status}: Failed to fetch projects`);
                 let projectsRaw = await projectsRes.json();
-                projects = (Array.isArray(projectsRaw) ? projectsRaw : (projectsRaw.data || [])).map(p => ({ ...p, Division: p.Division || p.division || p.costCentre || 'Onpoint Group', Manager: p.Manager || p.manager || p.pm || 'Unassigned', ProjectName: p.ProjectName || p.projectName || p.project || 'Unknown', Status: p.Status || p.status || 'Forecast', TotalIncome: parseNumber(p.TotalIncome || p.totalIncome), Margin: parseNumber(p.Margin || p.margin || 20), months: [parseNumber(p.Mar26), parseNumber(p.Apr26), parseNumber(p.May26), parseNumber(p.Jun26), parseNumber(p.Jul26), parseNumber(p.Aug26), parseNumber(p.Sep26), parseNumber(p.Oct26), parseNumber(p.Nov26), parseNumber(p.Dec26), parseNumber(p.Jan27), parseNumber(p.Feb27)] }));
-                uniqueManagers.clear(); projects.forEach(p => { if(p.Manager) uniqueManagers.add(p.Manager); });
+                // FIX: Extract data array correctly
+                let projectsData = projectsRaw.data || (Array.isArray(projectsRaw) ? projectsRaw : []);
+                projects = projectsData.map(p => ({ 
+                    ...p, 
+                    Division: p.Division || p.division || p.costCentre || p["Cost Centre"] || 'Onpoint Group', 
+                    Manager: p.Manager || p.manager || p.pm || 'Unassigned', 
+                    ProjectName: p.ProjectName || p.projectName || p.project || 'Unknown', 
+                    Status: p.Status || p.status || 'Forecast', 
+                    TotalIncome: parseNumber(p["Total Income"] || p.TotalIncome || p.totalIncome), 
+                    Margin: parseNumber(p.Margin || p.margin || p["Margin %"] || 20), 
+                    months: [parseNumber(p.Mar26), parseNumber(p.Apr26), parseNumber(p.May26), parseNumber(p.Jun26), parseNumber(p.Jul26), parseNumber(p.Aug26), parseNumber(p.Sep26), parseNumber(p.Oct26), parseNumber(p.Nov26), parseNumber(p.Dec26), parseNumber(p.Jan27), parseNumber(p.Feb27)] 
+                }));
                 
                 const revenueRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getRevenue`, { method: 'GET', mode: 'cors' });
                 if (!revenueRes.ok) throw new Error(`HTTP ${revenueRes.status}: Failed to fetch revenue`);
                 let revenueRaw = await revenueRes.json();
-                let revenueData = Array.isArray(revenueRaw) ? revenueRaw : (revenueRaw.data || []);
-                dailyEntries = revenueData.map(r => ({ date: r.date, manager: r.manager, projectName: r.projectName, amount: parseNumber(r.amount), quality: parseNumber(r.quality) || 80, safety: parseNumber(r.safety) || 0 }));
+                let revenueData = revenueRaw.data || (Array.isArray(revenueRaw) ? revenueRaw : []);
+                // FIX: Handle case-sensitive column names and normalize date
+                dailyEntries = revenueData.map(r => ({ 
+                    date: (r.Date || r.date || '').toString().split('T')[0],
+                    manager: r.Manager || r.manager,
+                    projectName: r.ProjectName || r.projectName,
+                    amount: parseNumber(r.Amount || r.amount),
+                    quality: parseNumber(r.Quality || r.quality) || 80,
+                    safety: parseNumber(r.Safety || r.safety) || 0
+                }));
                 invoices = dailyEntries.filter(e => e.date === new Date().toISOString().split('T')[0]);
                 
                 document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-check-circle me-1"></i> Live Connected';
                 document.getElementById('connectionStatus').className = 'connection-status status-connected';
                 refreshAllUI();
-                showLoading("Data loaded successfully!");
-                setTimeout(hideLoading, 1000);
+                hideLoading();
             } catch(err) { 
                 console.error("Connection Error:", err); 
-                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Connection Failed';
+                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Connection Failed - Using Demo Data';
                 document.getElementById('connectionStatus').className = 'connection-status status-disconnected';
                 loadDemoData(); 
                 hideLoading();
@@ -646,12 +792,10 @@
         }
         
         function loadDemoData() {
-            projects = [{ Division: 'Onpoint Group', Manager: 'Moses', ProjectName: 'DBSA Generators', Status: 'Confirmed', TotalIncome: 28400000, Margin: 45, months: [7666667,7666667,7666667,0,0,0,0,0,0,0,0,0] }, { Division: 'Aqua Telecoms', Manager: 'Govern', ProjectName: 'Liquid ECPG', Status: 'Confirmed', TotalIncome: 22000000, Margin: 65, months: [5500000,5500000,5500000,5500000,0,0,0,0,0,0,0,0] }];
-            uniqueManagers = new Set(projects.map(p => p.Manager));
-            const today = new Date().toISOString().split('T')[0];
-            dailyEntries = [{ date: today, manager: 'Moses', projectName: 'DBSA Generators', amount: 350000, quality: 85, safety: 0 }, { date: today, manager: 'Govern', projectName: 'Liquid ECPG', amount: 180000, quality: 90, safety: 0 }];
-            invoices = [...dailyEntries]; refreshAllUI();
-            document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-database me-1"></i> Demo Mode';
+            projects = []; 
+            dailyEntries = [];
+            invoices = [];
+            refreshAllUI();
         }
         
         function initCharts() {
@@ -660,6 +804,7 @@
             window.managerChart = new ApexCharts(document.querySelector("#managerPerformanceChart"), { chart: { type: 'bar', height: 400 }, series: [{ name: 'Variance %', data: [] }], xaxis: { categories: [] }, colors: ['#f59e0b'], plotOptions: { bar: { borderRadius: 8 } }, tooltip: { y: { formatter: v => v.toFixed(1) + '%' } } }); window.managerChart.render();
         }
         
+        // Period selectors
         document.querySelectorAll('#dashboardPeriodSelector .period-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('#dashboardPeriodSelector .period-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentDashboardPeriod = btn.dataset.period; updateDashboard(); }));
         document.querySelectorAll('#revenueChartPeriod .period-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('#revenueChartPeriod .period-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentRevenueChartPeriod = btn.dataset.period; updateRevenueChart(); }));
         document.querySelectorAll('#pieChartPeriod .period-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('#pieChartPeriod .period-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentPieChartPeriod = btn.dataset.period; updatePieChart(); }));
@@ -667,9 +812,17 @@
         
         document.querySelectorAll('.nav-tab-modern').forEach(tab => tab.addEventListener('click', () => { document.querySelectorAll('.nav-tab-modern').forEach(t => t.classList.remove('active')); document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active')); tab.classList.add('active'); document.getElementById(tab.dataset.tab).classList.add('active'); if(tab.dataset.tab === 'orderbook') updateOrderBook(); if(tab.dataset.tab === 'performance') updatePerformanceTable(); }));
         
-        function exportFullReport() { let csv = 'Division,Manager,Project,Status,Total Income\n' + projects.map(p => `${p.Division},${p.Manager},${p.ProjectName},${p.Status},${p.TotalIncome}`).join('\n'); let blob = new Blob([csv], {type:'text/csv'}); let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'orderbook_report.csv'; a.click(); }
+        function exportFullReport() { 
+            let csv = 'Division,Manager,Project,Status,Total Income\n' + projects.map(p => `${p.Division},${p.Manager},${p.ProjectName},${p.Status},${p.TotalIncome}`).join('\n');
+            let blob = new Blob([csv], {type:'text/csv'}); let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'orderbook_report.csv'; a.click(); 
+        }
         
-        initQualityStars(); initCharts(); loadAllData(); setInterval(() => loadAllData(), 300000);
+        // Initialize
+        populateDropdownsStatic();
+        initQualityStars(); 
+        initCharts(); 
+        loadAllData(); 
+        setInterval(() => loadAllData(), 300000);
     </script>
 </body>
 </html>
