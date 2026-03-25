@@ -381,22 +381,22 @@
                 </div>
                 <div class="row mt-3"><div class="col-12"><button class="btn btn-primary rounded-pill px-4" onclick="submitInvoice()"><i class="fas fa-save me-2"></i>Save Invoice</button></div></div>
                 <hr><h6 class="fw-semibold">Today's Invoices Summary</h6>
-                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>   </table></div>
+                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>    </table></div>
             </div></div>
         </div>
         
         <!-- Order Book Tab -->
-        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>   </table></div></div></div></div>
+        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>    </table></div></div></div></div>
         
         <!-- Performance Tab -->
-        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>   </table></div></div></div></div>
+        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>    </table></div></div></div></div>
     </div>
     <div class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i></div>
 
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
-        // IMPORTANT: Replace this URL with your deployed Apps Script Web App URL
-        const CONFIG = { SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxJ9iitPclA2KupLtM87ja1rxbCLOcwVXr-DEhtJaLm_EWGnZQZkPS5JEl4k5ILiiLE0w/exec' };
+        // REPLACE THIS URL WITH YOUR DEPLOYED APPS SCRIPT URL
+        const CONFIG = { SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwZEGBju2Wy9gBNo_P2MOnR6Pp7XMCTK4ATGKVtYsedMWpET_eT3hkSxHa_Kkb1VQ4/exec' };
         
         // Unique Project Managers List (no repeats)
         const PROJECT_MANAGERS = [
@@ -607,14 +607,14 @@
             document.getElementById('orderBookHeader').innerHTML = headers;
             let body = '';
             projects.forEach(p => { let gp = p.TotalIncome * (p.Margin / 100); body += `tr
-                 <td>${p.Division || 'Onpoint'}</td>
-                 <td>${p.Manager}</td>
-                 <td><strong>${p.ProjectName}</strong></td>
-                 <td><span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status}</span></td>
-                 <td>${formatCurrency(p.TotalIncome)}</td>
-                 <td>${formatCurrency(gp)}</td>
-             </tr>`; });
-            document.getElementById('orderBookBody').innerHTML = body || '<tr><td colspan="6">No projects loaded</td></tr>';
+                   ．${p.Division || 'Onpoint'}． 
+                   ．${p.Manager}． 
+                   ．<strong>${p.ProjectName}</strong>． 
+                   ．<span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status}</span>． 
+                   ．${formatCurrency(p.TotalIncome)}． 
+                   ．${formatCurrency(gp)}． 
+               `; });
+            document.getElementById('orderBookBody').innerHTML = body || ' <td colspan="6">No projects loaded</td> ';
         }
         
         function updatePerformanceTable() {
@@ -630,23 +630,28 @@
                 let totalIncidents = mgrMap[m].safety;
                 let statusClass = ach >= 80 ? 'badge-success' : ach >= 50 ? 'badge-warning' : 'badge-danger';
                 let statusText = ach >= 80 ? 'On Track' : ach >= 50 ? 'At Risk' : 'Behind';
-                html += `<tr>
-                    <td><strong>${m}</strong></td>
-                    <td>${formatCurrency(mgrMap[m].actual)}</td>
-                    <td>${formatCurrency(mgrMap[m].budget)}</td>
-                    <td><div class="progress-bar-custom w-100"><div class="progress-fill ${ach >= 80 ? 'green' : ach >= 50 ? 'orange' : 'red'}" style="width:${Math.min(100, ach)}%"></div></div> ${ach.toFixed(0)}%</td>
-                    <td><span class="badge-info">${Math.round(avgQuality)}%</span></td>
-                    <td><span class="${totalIncidents === 0 ? 'badge-success' : totalIncidents <= 2 ? 'badge-warning' : 'badge-danger'}">${totalIncidents} incidents</span></td>
-                    <td><span class="${statusClass}">${statusText}</span></td>
-                </tr>`;
+                html += ` 
+                     <td><strong>${m}</strong></td>
+                     <td>${formatCurrency(mgrMap[m].actual)}</td>
+                     <td>${formatCurrency(mgrMap[m].budget)}</td>
+                     <td><div class="progress-bar-custom w-100"><div class="progress-fill ${ach >= 80 ? 'green' : ach >= 50 ? 'orange' : 'red'}" style="width:${Math.min(100, ach)}%"></div></div> ${ach.toFixed(0)}%</td>
+                     <td><span class="badge-info">${Math.round(avgQuality)}%</span></td>
+                     <td><span class="${totalIncidents === 0 ? 'badge-success' : totalIncidents <= 2 ? 'badge-warning' : 'badge-danger'}">${totalIncidents} incidents</span></td>
+                     <td><span class="${statusClass}">${statusText}</span></td>
+                 `;
             }
-            document.querySelector('#perfTable tbody').innerHTML = html || '<tr><td colspan="7">No data</td></tr>';
+            document.querySelector('#perfTable tbody').innerHTML = html || ' <td colspan="7">No data</td> ';
         }
         
         function updateTodayInvoicesTable() {
             let today = new Date().toISOString().split('T')[0];
-            let html = invoices.filter(i => i.date === today).map(inv => `<tr><td>${inv.projectName}</td><td>${inv.manager}</td><td class="fw-bold">${formatCurrency(inv.amount)}</td><td>${new Date().toLocaleTimeString()}</td></tr>`).join('');
-            document.querySelector('#todayInvoicesTable tbody').innerHTML = html || '<tr><td colspan="4">No invoices today</td></tr>';
+            let html = invoices.filter(i => i.date === today).map(inv => ` 
+                 <td>${inv.projectName}</td>
+                 <td>${inv.manager}</td>
+                 <td class="fw-bold">${formatCurrency(inv.amount)}</td>
+                 <td>${new Date().toLocaleTimeString()}</td>
+             `).join('');
+            document.querySelector('#todayInvoicesTable tbody').innerHTML = html || ' <td colspan="4">No invoices today</td> ';
         }
         
         function calculateVariance() {
@@ -677,7 +682,6 @@
             };
             if(!revenue.manager || !revenue.projectName || revenue.amount <= 0) { alert('Please fill all fields'); return; }
             
-            // Send to Google Sheets
             fetch(CONFIG.SCRIPT_URL, {
                 method: 'POST',
                 mode: 'cors',
@@ -731,6 +735,39 @@
             document.getElementById('invAmount').value = '';
         }
         
+        function submitProject() {
+            let project = {
+                projectName: document.getElementById('projectName').value,
+                costCentre: document.getElementById('costCentre').value,
+                manager: document.getElementById('projectManager').value,
+                status: document.getElementById('projectStatus').value,
+                totalIncome: parseFloat(document.getElementById('totalIncome').value) || 0,
+                margin: parseFloat(document.getElementById('margin').value) || 25
+            };
+            if(!project.projectName || !project.manager || project.totalIncome <= 0) { alert('Please fill all fields'); return; }
+            
+            fetch(CONFIG.SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'addProject', data: project })
+            })
+            .then(res => res.json())
+            .then(result => {
+                if(result.success) {
+                    alert('Project saved to Google Sheets!');
+                    loadAllData();
+                    document.getElementById('projectForm').reset();
+                } else {
+                    alert('Error saving: ' + (result.error || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                console.error('Save error:', err);
+                alert('Error saving to Google Sheets.');
+            });
+        }
+        
         function refreshAllUI() { 
             updateDashboard(); 
             updateOrderBook(); 
@@ -747,10 +784,10 @@
         async function loadAllData() {
             showLoading("Fetching live data from Google Sheets...");
             try {
+                // Fetch Projects
                 const projectsRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getProjects`, { method: 'GET', mode: 'cors' });
                 if (!projectsRes.ok) throw new Error(`HTTP ${projectsRes.status}: Failed to fetch projects`);
                 let projectsRaw = await projectsRes.json();
-                // FIX: Extract data array correctly
                 let projectsData = projectsRaw.data || (Array.isArray(projectsRaw) ? projectsRaw : []);
                 projects = projectsData.map(p => ({ 
                     ...p, 
@@ -763,11 +800,11 @@
                     months: [parseNumber(p.Mar26), parseNumber(p.Apr26), parseNumber(p.May26), parseNumber(p.Jun26), parseNumber(p.Jul26), parseNumber(p.Aug26), parseNumber(p.Sep26), parseNumber(p.Oct26), parseNumber(p.Nov26), parseNumber(p.Dec26), parseNumber(p.Jan27), parseNumber(p.Feb27)] 
                 }));
                 
+                // Fetch Revenue
                 const revenueRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getRevenue`, { method: 'GET', mode: 'cors' });
                 if (!revenueRes.ok) throw new Error(`HTTP ${revenueRes.status}: Failed to fetch revenue`);
                 let revenueRaw = await revenueRes.json();
                 let revenueData = revenueRaw.data || (Array.isArray(revenueRaw) ? revenueRaw : []);
-                // FIX: Handle case-sensitive column names and normalize date
                 dailyEntries = revenueData.map(r => ({ 
                     date: (r.Date || r.date || '').toString().split('T')[0],
                     manager: r.Manager || r.manager,
@@ -776,7 +813,21 @@
                     quality: parseNumber(r.Quality || r.quality) || 80,
                     safety: parseNumber(r.Safety || r.safety) || 0
                 }));
-                invoices = dailyEntries.filter(e => e.date === new Date().toISOString().split('T')[0]);
+                
+                // Fetch Invoices separately
+                const invoiceRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getInvoices`, { method: 'GET', mode: 'cors' });
+                if (invoiceRes.ok) {
+                    let invoiceRaw = await invoiceRes.json();
+                    let invoiceData = invoiceRaw.data || (Array.isArray(invoiceRaw) ? invoiceRaw : []);
+                    invoices = invoiceData.map(i => ({
+                        date: (i.Date || i.date || '').toString().split('T')[0],
+                        manager: i.Manager || i.manager,
+                        projectName: i.ProjectName || i.projectName,
+                        amount: parseNumber(i.Amount || i.amount)
+                    }));
+                } else {
+                    invoices = dailyEntries.filter(e => e.date === new Date().toISOString().split('T')[0]);
+                }
                 
                 document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-check-circle me-1"></i> Live Connected';
                 document.getElementById('connectionStatus').className = 'connection-status status-connected';
@@ -784,9 +835,8 @@
                 hideLoading();
             } catch(err) { 
                 console.error("Connection Error:", err); 
-                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Connection Failed - Using Demo Data';
+                document.getElementById('connectionStatus').innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Connection Failed';
                 document.getElementById('connectionStatus').className = 'connection-status status-disconnected';
-                loadDemoData(); 
                 hideLoading();
             }
         }
