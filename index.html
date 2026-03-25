@@ -251,6 +251,20 @@
             text-align: center;
         }
         .spinner-border { width: 50px; height: 50px; }
+        
+        .auto-refresh-indicator {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-family: monospace;
+            z-index: 999;
+            backdrop-filter: blur(4px);
+        }
     </style>
 </head>
 <body>
@@ -312,8 +326,8 @@
                 <div class="col-md-12"><div class="card"><div class="card-header"><i class="fas fa-calendar-alt"></i> Monthly Budget vs MTD Actual</div><div class="card-body"><div id="mtdChart" class="chart-container" style="height: 320px;"></div></div></div></div>
             </div>
             <div class="row mt-4">
-                <div class="col-md-6"><div class="card"><div class="card-header"><i class="fas fa-building"></i> Revenue by Cost Centre</div><div class="card-body"><div class="table-container"><table class="table" id="costCentreTable"><thead> <th>Cost Centre</th><th>Confirmed</th><th>Forecast</th><th>Total</th><th>YTD Actual</th><th>Variance</th><th>Gross Profit</th> </thead><tbody></tbody>  </table></div></div></div></div>
-                <div class="col-md-6"><div class="card"><div class="card-header"><i class="fas fa-trophy"></i> Top 10 Performing Projects</div><div class="card-body"><div class="table-container"><table class="table" id="topProjectsTable"><thead> <th>Project</th><th>Division</th><th>Manager</th><th>Total Income</th><th>YTD Actual</th><th>Achievement</th><th>Gross Profit</th> </thead><tbody></tbody> </table></div></div></div></div>
+                <div class="col-md-6"><div class="card"><div class="card-header"><i class="fas fa-building"></i> Revenue by Cost Centre</div><div class="card-body"><div class="table-container"><table class="table" id="costCentreTable"><thead> <th>Cost Centre</th><th>Confirmed</th><th>Forecast</th><th>Total</th><th>YTD Actual</th><th>Variance</th><th>Gross Profit</th> </thead><tbody></tbody>    </table></div></div></div></div>
+                <div class="col-md-6"><div class="card"><div class="card-header"><i class="fas fa-trophy"></i> Top 10 Performing Projects</div><div class="card-body"><div class="table-container"><table class="table" id="topProjectsTable"><thead> <th>Project</th><th>Division</th><th>Manager</th><th>Total Income</th><th>YTD Actual</th><th>Achievement</th><th>Gross Profit</th> </thead><tbody></tbody>   </table></div></div></div></div>
             </div>
         </div>
         
@@ -375,7 +389,7 @@
                 <h5 class="mt-3">Today's Performance</h5>
                 <div class="row mb-4"><div class="col-md-3"><div class="stat-card p-3 bg-light rounded"><small>Today's Total</small><h4 id="todayTotal">R 0</h4></div></div><div class="col-md-3"><div class="stat-card p-3 bg-light rounded"><small>Today's Budget</small><h4 id="todayBudget">R 0</h4></div></div><div class="col-md-3"><div class="stat-card p-3 bg-light rounded"><small>Variance</small><h4 id="todayVariance">R 0</h4></div></div><div class="col-md-3"><div class="stat-card p-3 bg-light rounded"><small>Achievement</small><h4 id="todayAchievement">0%</h4></div></div></div>
                 <h5>Project Managers Ranking (Daily Performance)</h5>
-                <div class="table-container"><table class="table" id="managerRankingTable"><thead> <th>Rank</th><th>Manager</th><th>Projects</th><th>Daily Budget</th><th>Daily Actual</th><th>Variance</th><th>Achievement</th><th>Status</th> </thead><tbody><td colspan="8" class="text-center">Loading...</td></tbody></table></div>
+                <div class="table-container"><table class="table" id="managerRankingTable"><thead> <th>Rank</th><th>Manager</th><th>Projects</th><th>Daily Budget</th><th>Daily Actual</th><th>Variance</th><th>Achievement</th><th>Status</th> </thead><tbody><td colspan="8" class="text-center">Loading...</td></tbody>   </table></div>
             </div></div>
         </div>
         
@@ -395,39 +409,33 @@
         <div class="col-md-8"><div class="card"><div class="card-header"><i class="fas fa-chart-bar"></i> Manager Performance by Variance %</div><div class="card-body"><div class="table-container"><table class="table" id="managerPerformanceTable"><thead> <th>Manager</th><th>Projects</th><th>Total Budget</th><th>Actual Revenue</th><th>Variance (R)</th><th>Variance %</th><th>Status</th> </thead><tbody></tbody></table></div></div></div></div></div></div>
     </div>
     <div class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i></div>
+    <div class="auto-refresh-indicator" id="autoRefreshIndicator">🔄 Auto-refresh: 5 min</div>
 
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
         // ==================== GOOGLE SHEETS CONFIGURATION ====================
-        // CORRECTED: Sheet IDs and names aligned with Google Apps Script
         const GOOGLE_SHEETS_CONFIG = {
-            // Your Google Apps Script Web App URL (Replace with your deployed URL)
-            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxCa7Xj0-IVHVKzvRc4IJnfXo64GHECYUDjVWn3rJHyHW_MlnS1xLvLnXDyuxUTt3qn7g/exec',
-            
-            // Spreadsheet IDs - CORRECTED to match App Script
+            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxr-GNOaiwLnoYE2ebdtDR-WW0WPYfKp1rRIQNQNMmMiaYKkBM55oGbSiQJobeGJUhnYw/exec',
             ORDERS_SHEET_ID: '1qXz55Luti1s-0dh8qCPwxupX14kCNhtyWPJF6dpUdF0',
             REVENUE_SHEET_ID: '1zDYBgJYf6jQkzDSNdKDWwTRyJolf2gRxEYgv78lTFrM',
             ALERTS_SHEET_ID: '1n9E4_T0Ur67gzxNOxo4n6hnDJovbuIzBhq6bDauILug',
             PM_PERFORMANCE_SHEET_ID: '1RSgE89gw9XeRMDhoHhbkX3MfyRJG7OGtnA-moU2ZiXU',
-            
-            // Sheet Names - CORRECTED to match App Script
             SHEET_PROJECTS: 'Orders',
             SHEET_REVENUE: 'Revenue',
             SHEET_ALERTS: 'Alerts',
             SHEET_PM_PERFORMANCE: 'PMPerformance'
         };
         
-        // ==================== DATA STORES ====================
         let projects = [];
         let dailyRevenue = [];
         let alerts = [];
         let pmPerformance = [];
         let selectedManager = null;
+        let autoRefreshInterval = null;
         
         const monthIds = ['mar26', 'apr26', 'may26', 'jun26', 'jul26', 'aug26', 'sep26', 'oct26', 'nov26', 'dec26', 'jan27', 'feb27'];
         const monthLabels = ['Mar 26', 'Apr 26', 'May 26', 'Jun 26', 'Jul 26', 'Aug 26', 'Sep 26', 'Oct 26', 'Nov 26', 'Dec 26', 'Jan 27', 'Feb 27'];
         
-        // ==================== UI HELPER FUNCTIONS ====================
         function showLoading(msg) { document.getElementById('loadingOverlay').style.display = 'flex'; document.getElementById('loadingMessage').innerText = msg; }
         function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
         function showStatus(msg, type) { let div = document.createElement('div'); div.className = `status-message status-${type}`; div.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>${msg}`; document.body.appendChild(div); setTimeout(() => div.remove(), 3000); }
@@ -436,13 +444,11 @@
         const formatCurrency = (v) => 'R ' + Math.round(v || 0).toLocaleString();
         const parseCurrency = (v) => Number(String(v).replace(/[^0-9.-]+/g, '')) || 0;
         
-        // ==================== GOOGLE SHEETS API CALLS ====================
         async function loadAllData() {
             showLoading("Connecting to Google Sheets...");
             updateConnectionStatus('checking', '<i class="fas fa-sync-alt fa-spin me-1"></i> Fetching live data...');
             
             try {
-                // Load Projects from Orders sheet
                 const projectsResponse = await fetch(`${GOOGLE_SHEETS_CONFIG.SCRIPT_URL}?action=getProjects`);
                 const projectsData = await projectsResponse.json();
                 if (projectsData.success && projectsData.data) {
@@ -452,7 +458,6 @@
                     throw new Error(projectsData.error || "Failed to load projects");
                 }
                 
-                // Load Daily Revenue from Revenue sheet
                 const revenueResponse = await fetch(`${GOOGLE_SHEETS_CONFIG.SCRIPT_URL}?action=getRevenue`);
                 const revenueData = await revenueResponse.json();
                 if (revenueData.success && revenueData.data) {
@@ -462,19 +467,13 @@
                     throw new Error(revenueData.error || "Failed to load revenue");
                 }
                 
-                // Load Alerts (optional)
                 const alertsResponse = await fetch(`${GOOGLE_SHEETS_CONFIG.SCRIPT_URL}?action=getAlerts`);
                 const alertsData = await alertsResponse.json();
-                if (alertsData.success && alertsData.data) {
-                    alerts = alertsData.data;
-                }
+                if (alertsData.success && alertsData.data) alerts = alertsData.data;
                 
-                // Load PM Performance (optional)
                 const pmResponse = await fetch(`${GOOGLE_SHEETS_CONFIG.SCRIPT_URL}?action=getPMPerformance`);
                 const pmData = await pmResponse.json();
-                if (pmData.success && pmData.data) {
-                    pmPerformance = pmData.data;
-                }
+                if (pmData.success && pmData.data) pmPerformance = pmData.data;
                 
                 updateConnectionStatus('connected', '<i class="fas fa-check-circle me-1"></i> Live Data Connected');
                 showStatus(`Data loaded successfully: ${projects.length} projects, ${dailyRevenue.length} revenue entries`, 'success');
@@ -489,7 +488,6 @@
             hideLoading();
         }
         
-        // Submit new project to Orders sheet
         async function submitProject() {
             let months = monthIds.map(id => parseFloat(document.getElementById(id)?.value) || 0);
             let project = {
@@ -532,7 +530,6 @@
             hideLoading();
         }
         
-        // Submit daily revenue to Revenue sheet
         async function submitDailyRevenue() {
             let amount = parseFloat(document.getElementById('revAmount').value) || 0;
             let dailyBudgetText = document.getElementById('revDailyBudget').value;
@@ -572,11 +569,10 @@
             hideLoading();
         }
         
-        // ==================== DEMO DATA (FALLBACK) ====================
         function loadDemoData() {
             projects = [
                 { id: 1, costCentre: 'Onpoint Group', manager: 'Moses', projectName: 'DBSA Generators', status: 'Confirmed', totalIncome: 28400000, margin: 45, location: 'Pretoria', remarks: '', months: [7666667, 7666667, 7666667, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-                { id: 2, costCentre: 'Onpoint Group', manager: 'Andrew', projectName: 'Rooiwal Support', status: 'Confirmed', totalIncome: 22000000, margin: 18, location: 'Tshwane', remarks: '', months: [0, 0, 5000000, 5000000, 5000000, 5000000, 2000000, 0, 0, 0, 0, 0] },
+                { id: 2, costCentre: 'Onpoint Group', manager: 'Andrew', projectName: 'Rooiwal Support', status: 'Forecast', totalIncome: 22000000, margin: 18, location: 'Tshwane', remarks: '', months: [0, 0, 5000000, 5000000, 5000000, 5000000, 2000000, 0, 0, 0, 0, 0] },
                 { id: 3, costCentre: 'Aqua Telecoms', manager: 'Govern', projectName: 'Fibre BOT', status: 'Confirmed', totalIncome: 46000000, margin: 22, location: 'Multiple', remarks: '', months: [5200000, 5200000, 5200000, 5200000, 5200000, 5200000, 5200000, 5200000, 0, 0, 0, 0] }
             ];
             let today = new Date().toISOString().split('T')[0];
@@ -588,7 +584,6 @@
             updateConnectionStatus('disconnected', '<i class="fas fa-database me-1"></i> Demo Mode');
         }
         
-        // ==================== UI UPDATE FUNCTIONS ====================
         function initMonthlyGrid() { let html = ''; monthLabels.forEach((label, idx) => { html += `<div><label class="form-label small">${label}</label><input type="number" class="form-control month-input" id="${monthIds[idx]}" value="0" onchange="updateMonthlyTotal()"></div>`; }); document.getElementById('monthlyGrid').innerHTML = html; }
         function updateMonthlyTotal() { let total = 0; monthIds.forEach(id => { total += parseFloat(document.getElementById(id)?.value) || 0; }); document.getElementById('scheduledTotal').innerText = formatCurrency(total); let income = parseFloat(document.getElementById('totalIncome')?.value) || 0; let variance = income - total; let span = document.getElementById('scheduledVariance'); span.innerText = formatCurrency(variance); span.className = variance === 0 ? 'text-success' : 'text-danger'; }
         function distributeEvenly() { let income = parseFloat(document.getElementById('totalIncome')?.value) || 0; let startDate = document.getElementById('startDate')?.value; let endDate = document.getElementById('endDate')?.value; let activeMonths = 12; if (startDate && endDate) { let start = new Date(startDate), end = new Date(endDate); activeMonths = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1); activeMonths = Math.min(activeMonths, 12); } let perMonth = activeMonths > 0 ? Math.floor(income / activeMonths) : 0; monthIds.forEach((id, idx) => { document.getElementById(id).value = idx < activeMonths ? perMonth : 0; }); let remainder = income - (perMonth * activeMonths); if (remainder !== 0 && activeMonths > 0) document.getElementById(monthIds[activeMonths - 1]).value = perMonth + remainder; updateMonthlyTotal(); }
@@ -597,24 +592,45 @@
         function updateDailyTarget() { let projectName = document.getElementById('revProjectName').value; let manager = document.getElementById('revManager').value; let project = projects.find(p => p.projectName === projectName && p.manager === manager); if (project && project.months) { let currentMonth = new Date().getMonth(); let monthIdx = (currentMonth + 10) % 12; let monthlyTarget = project.months[monthIdx] || 0; let dailyBudget = monthlyTarget / 22; document.getElementById('revMonthlyTarget').value = formatCurrency(monthlyTarget); document.getElementById('revDailyBudget').value = formatCurrency(dailyBudget); } calculateDailyVariance(); }
         function calculateDailyVariance() { let amount = parseFloat(document.getElementById('revAmount').value) || 0; let budgetText = document.getElementById('revDailyBudget').value; let budget = parseCurrency(budgetText); let variance = amount - budget; let el = document.getElementById('revVariance'); el.value = formatCurrency(variance); el.style.color = variance >= 0 ? '#28a745' : '#dc3545'; }
         
-        function refreshAllUI() { updateDashboard(); updateOrderBook(); updateManagerRanking(); updateTodayStats(); updateManagerPerformanceTable(); updateCharts(); updateAnalysis(); populateManagerDropdown(); showStatus('Dashboard refreshed', 'success'); }
+        function refreshAllUI() { updateDashboard(); updateOrderBook(); updateManagerRanking(); updateTodayStats(); updateManagerPerformanceTable(); updateCharts(); updateAnalysis(); populateManagerDropdown(); }
         
         function updateDashboard() { 
-            let totalIncome = projects.reduce((s, p) => s + p.totalIncome, 0);
-            let confirmed = projects.filter(p => p.status === 'Confirmed').reduce((s, p) => s + p.totalIncome, 0);
-            let forecast = projects.filter(p => p.status === 'Forecast').reduce((s, p) => s + p.totalIncome, 0);
+            // Calculate Confirmed Total from Orders sheet (projects with status 'Confirmed')
+            let confirmedTotal = projects.filter(p => p.status === 'Confirmed').reduce((s, p) => s + p.totalIncome, 0);
+            
+            // Calculate Forecast Total from Orders sheet (projects with status 'Forecast')
+            let forecastTotal = projects.filter(p => p.status === 'Forecast').reduce((s, p) => s + p.totalIncome, 0);
+            
+            // YTD Actual from Revenue sheet
             let ytdActual = dailyRevenue.reduce((s, r) => s + r.amount, 0);
-            let currentMonth = new Date().getMonth(); let monthIdx = (currentMonth + 10) % 12;
+            
+            // Group BTYE = Forecast + Confirmed + 50% of Confirmed
+            // Formula: Forecast + Confirmed + (Confirmed * 0.5) = Forecast + (Confirmed * 1.5)
+            let groupBTYE = forecastTotal + (confirmedTotal * 1.5);
+            
+            // Total Order Book = Confirmed + Forecast
+            let totalOrderBook = confirmedTotal + forecastTotal;
+            
+            let currentMonth = new Date().getMonth(); 
+            let monthIdx = (currentMonth + 10) % 12;
             let mtdActual = dailyRevenue.filter(r => new Date(r.date).getMonth() === currentMonth).reduce((s, r) => s + r.amount, 0);
             let currentMonthBudget = projects.reduce((s, p) => s + (p.months?.[monthIdx] || 0), 0);
+            
             document.getElementById('totalProjects').innerText = projects.length;
-            document.getElementById('totalConfirmedDisplay').innerHTML = formatCurrency(confirmed);
-            document.getElementById('totalForecastDisplay').innerHTML = formatCurrency(forecast);
+            document.getElementById('totalConfirmedDisplay').innerHTML = formatCurrency(confirmedTotal);
+            document.getElementById('totalForecastDisplay').innerHTML = formatCurrency(forecastTotal);
             document.getElementById('ytdActualDisplay').innerHTML = formatCurrency(ytdActual);
-            document.getElementById('btyeDisplay').innerHTML = formatCurrency(totalIncome - ytdActual);
+            document.getElementById('btyeDisplay').innerHTML = formatCurrency(groupBTYE);
             document.getElementById('mtdDisplay').innerHTML = formatCurrency(mtdActual);
             document.getElementById('lastUpdated').innerHTML = new Date().toLocaleTimeString();
-            let kpiHtml = `<div class="kpi-card"><div class="kpi-icon"><i class="fas fa-file-invoice-dollar"></i></div><div class="kpi-label">Total Order Book</div><div class="kpi-value">${formatCurrency(totalIncome)}</div></div><div class="kpi-card"><div class="kpi-icon"><i class="fas fa-check-circle"></i></div><div class="kpi-label">Confirmed</div><div class="kpi-value">${formatCurrency(confirmed)}</div></div><div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-line"></i></div><div class="kpi-label">Forecast</div><div class="kpi-value">${formatCurrency(forecast)}</div></div><div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-pie"></i></div><div class="kpi-label">YTD Actual</div><div class="kpi-value">${formatCurrency(ytdActual)}</div></div><div class="kpi-card"><div class="kpi-icon"><i class="fas fa-calendar-check"></i></div><div class="kpi-label">Group BTYE</div><div class="kpi-value">${formatCurrency(totalIncome - ytdActual)}</div></div><div class="kpi-card"><div class="kpi-icon"><i class="fas fa-calendar-alt"></i></div><div class="kpi-label">MTD Actual</div><div class="kpi-value">${formatCurrency(mtdActual)}</div></div><div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-bar"></i></div><div class="kpi-label">Current Month Budget</div><div class="kpi-value">${formatCurrency(currentMonthBudget)}</div></div>`;
+            
+            let kpiHtml = `<div class="kpi-card"><div class="kpi-icon"><i class="fas fa-file-invoice-dollar"></i></div><div class="kpi-label">Total Order Book</div><div class="kpi-value">${formatCurrency(totalOrderBook)}</div></div>
+            <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-check-circle"></i></div><div class="kpi-label">Confirmed</div><div class="kpi-value">${formatCurrency(confirmedTotal)}</div></div>
+            <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-line"></i></div><div class="kpi-label">Forecast</div><div class="kpi-value">${formatCurrency(forecastTotal)}</div></div>
+            <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-pie"></i></div><div class="kpi-label">YTD Actual</div><div class="kpi-value">${formatCurrency(ytdActual)}</div></div>
+            <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-calendar-check"></i></div><div class="kpi-label">Group BTYE</div><div class="kpi-value">${formatCurrency(groupBTYE)}</div></div>
+            <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-calendar-alt"></i></div><div class="kpi-label">MTD Actual</div><div class="kpi-value">${formatCurrency(mtdActual)}</div></div>
+            <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-bar"></i></div><div class="kpi-label">Current Month Budget</div><div class="kpi-value">${formatCurrency(currentMonthBudget)}</div></div>`;
             document.getElementById('kpiGrid').innerHTML = kpiHtml;
             
             // Cost Centre Table
@@ -630,7 +646,7 @@
             let ccHtml = '';
             for (let cc in ccMap) {
                 let variance = ccMap[cc].actual - ccMap[cc].total;
-                ccHtml += `<tr><td>${cc}</td><td>${formatCurrency(ccMap[cc].confirmed)}</td><td>${formatCurrency(ccMap[cc].forecast)}</td><td>${formatCurrency(ccMap[cc].total)}</td><td>${formatCurrency(ccMap[cc].actual)}</td><td class="${variance >= 0 ? 'variance-positive' : 'variance-negative'}">${formatCurrency(variance)}</td><td>${formatCurrency(ccMap[cc].profit)}</td></tr>`;
+                ccHtml += `tr<td>${cc}</td><td>${formatCurrency(ccMap[cc].confirmed)}</td><td>${formatCurrency(ccMap[cc].forecast)}</td><td>${formatCurrency(ccMap[cc].total)}</td><td>${formatCurrency(ccMap[cc].actual)}</td><td class="${variance >= 0 ? 'variance-positive' : 'variance-negative'}">${formatCurrency(variance)}</td><td>${formatCurrency(ccMap[cc].profit)}</td></tr>`;
             }
             document.querySelector('#costCentreTable tbody').innerHTML = ccHtml;
             
@@ -649,10 +665,10 @@
             document.getElementById('orderBookHeader').innerHTML = headers;
             let bodyHtml = '';
             projects.forEach(p => {
-                let scheduled = p.months.reduce((a, b) => a + b, 0);
+                let scheduled = p.months ? p.months.reduce((a, b) => a + b, 0) : 0;
                 let ytd = dailyRevenue.filter(r => r.projectName === p.projectName).reduce((s, r) => s + r.amount, 0);
                 let gp = p.totalIncome * (p.margin / 100);
-                bodyHtml += `<tr><td>${p.costCentre}</td><td>${p.manager}</td><td>${p.projectName}</td><td><span class="badge-${p.status === 'Confirmed' ? 'confirmed' : 'forecast'}">${p.status}</span></td><td>${formatCurrency(p.totalIncome)}</td>${p.months.map(m => `<td>${formatCurrency(m)}</td>`).join('')}<td>${formatCurrency(scheduled)}</td><td>${formatCurrency(ytd)}</td><td>${formatCurrency(p.totalIncome - ytd)}</td><td>${formatCurrency(gp)}</td></tr>`;
+                bodyHtml += `<tr><td>${p.costCentre}</td><td>${p.manager}</td><td>${p.projectName}</td><td><span class="badge-${p.status === 'Confirmed' ? 'confirmed' : 'forecast'}">${p.status}</span></td><td>${formatCurrency(p.totalIncome)}</td>${(p.months || Array(12).fill(0)).map(m => `<td>${formatCurrency(m)}</td>`).join('')}<td>${formatCurrency(scheduled)}</td><td>${formatCurrency(ytd)}</td><td>${formatCurrency(p.totalIncome - ytd)}</td><td>${formatCurrency(gp)}</td></tr>`;
             });
             document.getElementById('orderBookBody').innerHTML = bodyHtml;
         }
@@ -666,7 +682,7 @@
                 if (!managerData[p.manager]) managerData[p.manager] = { projects: 0, dailyBudget: 0, dailyActual: 0 };
                 managerData[p.manager].projects++;
                 let monthIdx = (currentMonth + 10) % 12;
-                let monthlyBudget = p.months?.[monthIdx] || 0;
+                let monthlyBudget = (p.months && p.months[monthIdx]) ? p.months[monthIdx] : 0;
                 managerData[p.manager].dailyBudget += monthlyBudget / workingDays;
             });
             dailyRevenue.forEach(r => {
@@ -685,7 +701,7 @@
             let workingDays = 22;
             let monthIdx = (currentMonth + 10) % 12;
             let todayActual = dailyRevenue.filter(r => r.date === today).reduce((s, r) => s + r.amount, 0);
-            let todayBudget = projects.reduce((s, p) => s + ((p.months?.[monthIdx] || 0) / workingDays), 0);
+            let todayBudget = projects.reduce((s, p) => s + (((p.months && p.months[monthIdx]) ? p.months[monthIdx] : 0) / workingDays), 0);
             document.getElementById('todayTotal').innerHTML = formatCurrency(todayActual);
             document.getElementById('todayBudget').innerHTML = formatCurrency(todayBudget);
             let variance = todayActual - todayBudget;
@@ -716,10 +732,10 @@
             if(window.revenueChart) window.revenueChart.updateSeries([{ name: 'Budget', data: monthlyBudget }, { name: 'Actual', data: monthlyActual }]);
             let gpByDiv = {};
             projects.forEach(p => { gpByDiv[p.costCentre] = (gpByDiv[p.costCentre] || 0) + p.totalIncome * (p.margin / 100); });
-            if(window.pieChart) { window.pieChart.updateOptions({ labels: Object.keys(gpByDiv) }); window.pieChart.updateSeries(Object.values(gpByDiv)); }
+            if(window.pieChart && Object.keys(gpByDiv).length) { window.pieChart.updateOptions({ labels: Object.keys(gpByDiv) }); window.pieChart.updateSeries(Object.values(gpByDiv)); }
             let currentMonth = new Date().getMonth();
             let monthIdx = (currentMonth + 10) % 12;
-            let currentBudget = projects.reduce((s, p) => s + (p.months?.[monthIdx] || 0), 0);
+            let currentBudget = projects.reduce((s, p) => s + ((p.months && p.months[monthIdx]) ? p.months[monthIdx] : 0), 0);
             let currentActual = dailyRevenue.filter(r => new Date(r.date).getMonth() === currentMonth).reduce((s, r) => s + r.amount, 0);
             if(window.mtdChart) window.mtdChart.updateSeries([{ name: 'Budget', data: [currentBudget] }, { name: 'Actual', data: [currentActual] }]);
         }
@@ -757,8 +773,10 @@
                 filteredRevenue.forEach(r => { let d = new Date(r.date); let idx = (d.getMonth() + 10) % 12; if (chartData[idx]) chartData[idx].actual += r.amount; });
             }
             
-            if (window.analysisChart) window.analysisChart.updateOptions({ xaxis: { categories: chartData.map(d => d.name) } });
-            if (window.analysisChart) window.analysisChart.updateSeries([{ name: 'Budget', data: chartData.map(d => d.budget) }, { name: 'Actual', data: chartData.map(d => d.actual) }]);
+            if (window.analysisChart) {
+                window.analysisChart.updateOptions({ xaxis: { categories: chartData.map(d => d.name) } });
+                window.analysisChart.updateSeries([{ name: 'Budget', data: chartData.map(d => d.budget) }, { name: 'Actual', data: chartData.map(d => d.actual) }]);
+            }
             
             let tableHtml = chartData.map(d => `<tr><td>${d.name}</td><td>-</td><td>-</td><td>-</td><td>${formatCurrency(d.budget)}</td><td>${formatCurrency(d.actual)}</td><td class="${d.actual - d.budget >= 0 ? 'variance-positive' : 'variance-negative'}">${formatCurrency(d.actual - d.budget)}</td><td>${d.budget > 0 ? ((d.actual / d.budget) * 100).toFixed(1) : 0}%</td></tr>`).join('');
             document.querySelector('#analysisTable tbody').innerHTML = tableHtml || '<tr><td colspan="8" class="text-center">No data</td></tr>';
@@ -788,9 +806,9 @@
             if (type === 'orderbook') { 
                 data = 'Division,Manager,Project,Status,Total Income,' + monthLabels.join(',') + ',Scheduled,YTD Actual,BTYE,Gross Profit\n'; 
                 projects.forEach(p => { 
-                    let scheduled = p.months.reduce((a, b) => a + b, 0); 
+                    let scheduled = p.months ? p.months.reduce((a, b) => a + b, 0) : 0; 
                     let ytd = dailyRevenue.filter(r => r.projectName === p.projectName).reduce((s, r) => s + r.amount, 0); 
-                    data += `${p.costCentre},${p.manager},${p.projectName},${p.status},${p.totalIncome},${p.months.join(',')},${scheduled},${ytd},${p.totalIncome - ytd},${p.totalIncome * (p.margin/100)}\n`; 
+                    data += `${p.costCentre},${p.manager},${p.projectName},${p.status},${p.totalIncome},${p.months ? p.months.join(',') : ''},${scheduled},${ytd},${p.totalIncome - ytd},${p.totalIncome * (p.margin/100)}\n`; 
                 }); 
             } 
             let blob = new Blob([data], { type: 'text/csv' }); 
@@ -814,6 +832,15 @@
             initCharts();
             document.getElementById('revDate').value = new Date().toISOString().split('T')[0];
             loadAllData();
+            
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            autoRefreshInterval = setInterval(() => {
+                console.log("Auto-refreshing data (5 min interval)...");
+                loadAllData();
+            }, 300000);
+            
+            const indicator = document.getElementById('autoRefreshIndicator');
+            if (indicator) indicator.innerHTML = '🔄 Auto-refresh: 5 minutes';
         });
     </script>
 </body>
