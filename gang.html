@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On Point Group - Order Book Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo h1 {
+            color: #667eea;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .logo p {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: #f7f9fc;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+
+        .user-info i {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-email {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .logout-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .logout-btn:hover {
+            background: #e84118;
+            transform: translateY(-2px);
+        }
+
+        .nav-tabs {
+            background: white;
+            display: flex;
+            gap: 0.5rem;
+            padding: 0 2rem;
+            border-bottom: 2px solid #e0e0e0;
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            color: #667eea;
+        }
+
+        .nav-tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .main-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        .kpi-title {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-sub {
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        .kpi-progress {
+            margin-top: 1rem;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .kpi-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        th {
+            background: #f7f9fc;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f7f9fc;
+        }
+
+        .btn-add {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+        }
+
+        .btn-add:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+
+        .btn-edit {
+            background: #ffc107;
+            color: #333;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 800px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+        }
+
+        .close-modal {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .monthly-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .monthly-grid .form-group {
+            margin-bottom: 0;
+        }
+
+        .monthly-grid label {
+            font-size: 0.75rem;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-badge.confirmed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-badge.forecast {
+            background: #fff3e0;
+            color: #ed6c02;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: white;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 10000;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification.success { background: #4caf50; color: white; }
+        .notification.error { background: #f44336; color: white; }
+        .notification.info { background: #2196f3; color: white; }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; text-align: center; }
+            .user-info { width: 100%; justify-content: space-between; }
+            .main-content { padding: 1rem; }
+            .kpi-grid { grid-template-columns: 1fr; }
+            .chart-row { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .monthly-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <h1><i class="fas fa-chart-line"></i> On Point Group</h1>
+            <p>Order Book Management System</p>
+        </div>
+        <div class="user-info">
+            <i class="fas fa-user-circle"></i>
+            <div class="user-details">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-email" id="userEmail">Loading...</div>
+            </div>
+            <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </div>
+
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="nav-tab" onclick="switchTab('orderbook')">Order Book</button>
+        <button class="nav-tab" onclick="switchTab('kpi')">KPI Analysis</button>
+        <button class="nav-tab" onclick="switchTab('pm')">Project Managers</button>
+        <button class="nav-tab" onclick="switchTab('add')">Add New Entry</button>
+    </div>
+
+    <div class="main-content">
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" class="tab-content">
+            <div class="kpi-grid" id="kpiGrid"></div>
+            <div class="chart-row">
+                <div class="chart-container">
+                    <h3>Revenue by Sector</h3>
+                    <canvas id="sectorChart" width="400" height="300"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Gross Profit by Sector</h3>
+                    <canvas id="profitChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <h3>Monthly Revenue Forecast</h3>
+                <canvas id="monthlyChart" width="800" height="300"></canvas>
+            </div>
+        </div>
+
+        <!-- Order Book Tab -->
+        <div id="orderbookTab" class="tab-content" style="display: none;">
+            <button class="btn-add" onclick="showAddEntryModal()"><i class="fas fa-plus"></i> Add New Entry</button>
+            <div class="table-container">
+                <table id="orderbookTable">
+                    <thead>
+                        <tr>
+                            <th>Category</th><th>PM</th><th>Project</th><th>Status</th><th>Amount</th>
+                            <th>Mar-26</th><th>Apr-26</th><th>May-26</th><th>Jun-26</th><th>Jul-26</th>
+                            <th>Aug-26</th><th>Sep-26</th><th>Oct-26</th><th>Nov-26</th><th>Dec-26</th>
+                            <th>Jan-27</th><th>Feb-27</th><th>Total</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderbookBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- KPI Tab -->
+        <div id="kpiTab" class="tab-content" style="display: none;">
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>KPI Metric</th><th>Value</th><th>Target</th><th>Achievement</th></tr></thead>
+                    <tbody id="kpiTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PM Tab -->
+        <div id="pmTab" class="tab-content" style="display: none;">
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Project Manager</th><th>Confirmed</th><th>Forecast</th><th>Adjusted Plan</th><th>Capacity</th><th>Capacity %</th><th>Adjusted Capacity</th><th>Adjusted %</th></tr></thead>
+                    <tbody id="pmTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Add New Entry Tab -->
+        <div id="addTab" class="tab-content" style="display: none;">
+            <div class="chart-container">
+                <h2><i class="fas fa-plus-circle"></i> Add New Order Book Entry</h2>
+                <form id="quickAddForm" onsubmit="saveQuickEntry(); return false;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Category *</label>
+                            <select id="quickCategory" required>
+                                <option value="">Select Category</option>
+                                <option value="Electrical">Electrical</option>
+                                <option value="Civil">Civil</option>
+                                <option value="Mechanical">Mechanical</option>
+                                <option value="General Buildings">General Buildings</option>
+                                <option value="Roads">Roads</option>
+                                <option value="Telecoms">Telecoms</option>
+                                <option value="On Point On Time">On Point On Time</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Project Manager *</label>
+                            <select id="quickPM" required>
+                                <option value="">Select Project Manager</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Project Name *</label>
+                            <select id="quickProject" required>
+                                <option value="">Select Project</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status *</label>
+                            <select id="quickStatus" required>
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Forecast">Forecast</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Total Amount *</label>
+                            <input type="number" id="quickAmount" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea id="quickNotes" rows="2" placeholder="Optional notes"></textarea>
+                        </div>
+                    </div>
+                    
+                    <h3 style="margin: 1rem 0 0.5rem;">Monthly Distribution</h3>
+                    <div class="monthly-grid">
+                        <div class="form-group"><label>Mar-26</label><input type="number" id="quickMar26" value="0"></div>
+                        <div class="form-group"><label>Apr-26</label><input type="number" id="quickApr26" value="0"></div>
+                        <div class="form-group"><label>May-26</label><input type="number" id="quickMay26" value="0"></div>
+                        <div class="form-group"><label>Jun-26</label><input type="number" id="quickJun26" value="0"></div>
+                        <div class="form-group"><label>Jul-26</label><input type="number" id="quickJul26" value="0"></div>
+                        <div class="form-group"><label>Aug-26</label><input type="number" id="quickAug26" value="0"></div>
+                        <div class="form-group"><label>Sep-26</label><input type="number" id="quickSep26" value="0"></div>
+                        <div class="form-group"><label>Oct-26</label><input type="number" id="quickOct26" value="0"></div>
+                        <div class="form-group"><label>Nov-26</label><input type="number" id="quickNov26" value="0"></div>
+                        <div class="form-group"><label>Dec-26</label><input type="number" id="quickDec26" value="0"></div>
+                        <div class="form-group"><label>Jan-27</label><input type="number" id="quickJan27" value="0"></div>
+                        <div class="form-group"><label>Feb-27</label><input type="number" id="quickFeb27" value="0"></div>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit"><i class="fas fa-save"></i> Save Entry</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit Entry -->
+    <div id="entryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Entry</h2>
+                <span class="close-modal" onclick="closeModal()">&times;</span>
+            </div>
+            <form id="entryForm">
+                <div class="form-row">
+                    <div class="form-group"><label>Category *</label><select id="category" required><option value="">Select</option><option value="Electrical">Electrical</option><option value="Civil">Civil</option><option value="Mechanical">Mechanical</option><option value="General Buildings">General Buildings</option><option value="Roads">Roads</option><option value="Telecoms">Telecoms</option><option value="On Point On Time">On Point On Time</option></select></div>
+                    <div class="form-group"><label>Project Manager *</label><select id="projectManager" required><option value="">Select Project Manager</option></select></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Project *</label><select id="project" required><option value="">Select Project</option></select></div>
+                    <div class="form-group"><label>Status *</label><select id="status" required><option value="Confirmed">Confirmed</option><option value="Forecast">Forecast</option></select></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Amount *</label><input type="number" id="amount" required></div>
+                    <div class="form-group"><label>Notes</label><textarea id="notes" rows="2"></textarea></div>
+                </div>
+                <h3>Monthly Breakdown</h3>
+                <div class="monthly-grid">
+                    <div class="form-group"><label>Mar-26</label><input type="number" id="mar26" value="0"></div>
+                    <div class="form-group"><label>Apr-26</label><input type="number" id="apr26" value="0"></div>
+                    <div class="form-group"><label>May-26</label><input type="number" id="may26" value="0"></div>
+                    <div class="form-group"><label>Jun-26</label><input type="number" id="jun26" value="0"></div>
+                    <div class="form-group"><label>Jul-26</label><input type="number" id="jul26" value="0"></div>
+                    <div class="form-group"><label>Aug-26</label><input type="number" id="aug26" value="0"></div>
+                    <div class="form-group"><label>Sep-26</label><input type="number" id="sep26" value="0"></div>
+                    <div class="form-group"><label>Oct-26</label><input type="number" id="oct26" value="0"></div>
+                    <div class="form-group"><label>Nov-26</label><input type="number" id="nov26" value="0"></div>
+                    <div class="form-group"><label>Dec-26</label><input type="number" id="dec26" value="0"></div>
+                    <div class="form-group"><label>Jan-27</label><input type="number" id="jan27" value="0"></div>
+                    <div class="form-group"><label>Feb-27</label><input type="number" id="feb27" value="0"></div>
+                </div>
+                <button type="submit" class="btn-submit">Save Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Project Managers List (Unique sorted list)
+        const PROJECT_MANAGERS = [
+            "Andrew", "Brian", "Civil Site Agent", "Dave", "EL CM", "Elroy", 
+            "Govern", "Graham", "James", "Johan", "Mesh", "Moeti", "Moses", 
+            "Petros", "Phillip", "Rayman", "Roads Site Agent COT", "Roads Site Agent CPT", 
+            "Ronald", "Siyanda", "Stanley", "Sydney", "Timothy", "Tinotenda", 
+            "Tony", "Vusi"
+        ].sort();
+
+        // Projects List (Unique sorted list)
+        const PROJECTS = [
+            "Abaquilisi Battery Supplies", "Abaquilisi Streetlights", "Amajuba Generator",
+            "Cape Town", "Centlec", "Centlec CD11", "Centlec CD45", "Centlec Transformers CD32",
+            "City Power", "COE Buildings", "COE Streetlights", "Coega", "COT Electrification",
+            "COT Metering", "COT Streetlights", "DBSA Generators", "DBSA Rooiwal",
+            "Eskom ECOU", "Eskom FSOU Substation", "Eskom Harvard", "Eskom KZN Minor Reticulation",
+            "Eskom LOU General Buildings", "Eskom SPU", "Eskom WC", "IDT North West Buidlings",
+            "Joe Gqabi", "Kgetleng River", "KZN General Buildings", "Limpopo Eskom Substation Ephraim Mogale",
+            "Liquid ECPG", "Liquid ECSOD", "Liquid Gauteng SOD", "Midvaal", "Midvaal Electricity",
+            "Midvaal Mechanical", "Midvaal Water", "Moqhaka Metering", "Moqhaka Streetlights",
+            "Msunduzi E33", "Msunduzi E47", "Msunduzi E50", "Msunduzi Streetlights", "MTN",
+            "Naizna", "Newcastle Substations", "Public Works Limpopo", "RAL", "Ramotshere Electrical Supplies",
+            "Randwest Bulk", "Randwest Electrical", "Randwest Roads & Stormwater", "Randwest Water rand sanitation",
+            "Ray Nkonyeni Electrical Material", "Ray Nkonyeni Facility", "Ray Nkonyeni Mast",
+            "Ray Nkonyeni Meter Reading", "Stellenbosh", "Telkom", "Temba", "Tshwane", "Ubuntu",
+            "Umhlathuze Municipality", "uPhongolo", "Uthukela"
+        ].sort();
+
+        let orderBookData = [];
+        let pmData = [];
+        let kpiData = {};
+        let monthlyRevenue = {};
+        let revenueBySector = {};
+        let currentUser = null;
+        let sectorChart, profitChart, monthlyChart;
+        let currentEditIndex = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            populateDropdowns();
+            checkAuth();
+        });
+
+        function populateDropdowns() {
+            // Populate Project Manager dropdowns
+            const pmSelects = ['quickPM', 'projectManager'];
+            pmSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.innerHTML = '<option value="">Select Project Manager</option>';
+                    PROJECT_MANAGERS.forEach(pm => {
+                        const option = document.createElement('option');
+                        option.value = pm;
+                        option.textContent = pm;
+                        select.appendChild(option);
+                    });
+                }
+            });
+
+            // Populate Project dropdowns
+            const projectSelects = ['quickProject', 'project'];
+            projectSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.innerHTML = '<option value="">Select Project</option>';
+                    PROJECTS.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project;
+                        option.textContent = project;
+                        select.appendChild(option);
+                    });
+                }
+            });
+        }
+
+        function checkAuth() {
+            google.script.run.withSuccessHandler(function(user) {
+                currentUser = user;
+                document.getElementById('userName').textContent = user.name || user.email.split('@')[0];
+                document.getElementById('userEmail').textContent = user.email;
+                loadData();
+            }).withFailureHandler(function(error) {
+                console.error('Auth error:', error);
+                document.getElementById('userName').textContent = 'Guest User';
+                document.getElementById('userEmail').textContent = 'Not logged in';
+                loadData();
+            }).getCurrentUser();
+        }
+
+        function logout() {
+            google.script.run.withSuccessHandler(function() {
+                window.location.reload();
+            }).logout();
+        }
+
+        function loadData() {
+            showLoading();
+            google.script.run.withSuccessHandler(function(data) {
+                if (data.success) {
+                    orderBookData = data.orderBook || [];
+                    pmData = data.pmData || [];
+                    kpiData = data.kpiData || {};
+                    monthlyRevenue = data.monthlyRevenue || { labels: [], total: [], confirmed: [], forecast: [] };
+                    revenueBySector = data.revenueBySector || {};
+                    
+                    updateDashboard();
+                    updateOrderBook();
+                    updateKPITable();
+                    updatePMTable();
+                    updateCharts();
+                } else {
+                    showNotification('Error loading data: ' + data.error, 'error');
+                }
+                hideLoading();
+            }).withFailureHandler(function(error) {
+                console.error('Error:', error);
+                showNotification('Failed to load data: ' + error.message, 'error');
+                hideLoading();
+            }).getDashboardData();
+        }
+
+        function showLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loadingOverlay';
+            loadingDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;justify-content:center;align-items:center;';
+            loadingDiv.innerHTML = '<div class="spinner"></div><div style="color:white">Loading...</div>';
+            document.body.appendChild(loadingDiv);
+        }
+
+        function hideLoading() {
+            const loadingDiv = document.getElementById('loadingOverlay');
+            if (loadingDiv) loadingDiv.remove();
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i><span>${message}</span>`;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.getElementById(`${tab}Tab`).style.display = 'block';
+            document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            if (tab === 'dashboard') updateCharts();
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value || 0);
+        }
+
+        function updateDashboard() {
+            const kpiGrid = document.getElementById('kpiGrid');
+            kpiGrid.innerHTML = `
+                <div class="kpi-card"><div class="kpi-title">Total Revenue</div><div class="kpi-value">${formatCurrency(kpiData.totalRevenue || 0)}</div><div class="kpi-sub">Across all sectors</div></div>
+                <div class="kpi-card"><div class="kpi-title">Confirmed Orders</div><div class="kpi-value">${formatCurrency(kpiData.totalConfirmed || 0)}</div><div class="kpi-sub">${((kpiData.totalConfirmed/kpiData.totalRevenue)*100 || 0).toFixed(1)}% of total</div><div class="kpi-progress"><div class="kpi-progress-bar" style="width: ${(kpiData.totalConfirmed/kpiData.totalRevenue*100) || 0}%"></div></div></div>
+                <div class="kpi-card"><div class="kpi-title">Forecast Orders</div><div class="kpi-value">${formatCurrency(kpiData.totalForecast || 0)}</div><div class="kpi-sub">${((kpiData.totalForecast/kpiData.totalRevenue)*100 || 0).toFixed(1)}% of total</div><div class="kpi-progress"><div class="kpi-progress-bar" style="width: ${(kpiData.totalForecast/kpiData.totalRevenue*100) || 0}%"></div></div></div>
+                <div class="kpi-card"><div class="kpi-title">Gross Profit</div><div class="kpi-value">${formatCurrency(kpiData.totalProfit || 0)}</div><div class="kpi-sub">Margin: ${(kpiData.profitMargin || 0).toFixed(1)}%</div><div class="kpi-progress"><div class="kpi-progress-bar" style="width: ${(kpiData.profitMargin || 0)}%"></div></div></div>
+                <div class="kpi-card"><div class="kpi-title">PM Capacity Utilization</div><div class="kpi-value">${(kpiData.capacityUtilization || 0).toFixed(1)}%</div><div class="kpi-sub">Adjusted: ${(kpiData.adjustedUtilization || 0).toFixed(1)}%</div><div class="kpi-progress"><div class="kpi-progress-bar" style="width: ${kpiData.capacityUtilization || 0}%"></div></div></div>
+                <div class="kpi-card"><div class="kpi-title">Active Projects</div><div class="kpi-value">${kpiData.orderCount || 0}</div><div class="kpi-sub">${kpiData.confirmedCount || 0} Confirmed, ${kpiData.forecastCount || 0} Forecast</div></div>
+            `;
+        }
+
+        function updateCharts() {
+            if (sectorChart) sectorChart.destroy();
+            if (profitChart) profitChart.destroy();
+            if (monthlyChart) monthlyChart.destroy();
+
+            const sectorLabels = Object.keys(revenueBySector);
+            const sectorValues = sectorLabels.map(l => revenueBySector[l].revenue);
+            const profitValues = sectorLabels.map(l => revenueBySector[l].profit);
+
+            const ctx1 = document.getElementById('sectorChart').getContext('2d');
+            sectorChart = new Chart(ctx1, { type: 'pie', data: { labels: sectorLabels, datasets: [{ data: sectorValues, backgroundColor: ['#667eea','#764ba2','#ff6b6b','#4ecdc4','#45b7d1','#96ceb4','#f9ca24'] }] }, options: { responsive: true } });
+
+            const ctx2 = document.getElementById('profitChart').getContext('2d');
+            profitChart = new Chart(ctx2, { type: 'bar', data: { labels: sectorLabels, datasets: [{ label: 'Gross Profit', data: profitValues, backgroundColor: '#4ecdc4' }] }, options: { responsive: true } });
+
+            const ctx3 = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChart = new Chart(ctx3, { type: 'line', data: { labels: monthlyRevenue.labels, datasets: [{ label: 'Total Revenue', data: monthlyRevenue.total, borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', fill: true }, { label: 'Confirmed', data: monthlyRevenue.confirmed, borderColor: '#4caf50' }, { label: 'Forecast', data: monthlyRevenue.forecast, borderColor: '#ff9800' }] }, options: { responsive: true } });
+        }
+
+        function updateOrderBook() {
+            const tbody = document.getElementById('orderbookBody');
+            tbody.innerHTML = '';
+            orderBookData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.Category || ''}</td>
+                    <td>${row['Project Manager'] || ''}</td>
+                    <td>${row.Project || ''}</td>
+                    <td><span class="status-badge ${row.Status === 'Confirmed' ? 'confirmed' : 'forecast'}">${row.Status || ''}</span></td>
+                    <td>${formatCurrency(row.Amount || 0)}</td>
+                    <td>${formatCurrency(row['Mar-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Apr-26'] || 0)}</td>
+                    <td>${formatCurrency(row['May-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Jun-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Jul-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Aug-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Sep-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Oct-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Nov-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Dec-26'] || 0)}</td>
+                    <td>${formatCurrency(row['Jan-27'] || 0)}</td>
+                    <td>${formatCurrency(row['Feb-27'] || 0)}</td>
+                    <td>${formatCurrency(row.Total || 0)}</td>
+                    <td><button class="btn-edit" onclick="editEntry(${index})"><i class="fas fa-edit"></i></button><button class="btn-delete" onclick="deleteEntry(${index})"><i class="fas fa-trash"></i></button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateKPITable() {
+            const tbody = document.getElementById('kpiTableBody');
+            tbody.innerHTML = `
+                <tr><td>Total Revenue</td><td>${formatCurrency(kpiData.totalRevenue)}</td><td>${formatCurrency(500000000)}</td><td>${((kpiData.totalRevenue/500000000)*100).toFixed(1)}%<div class="kpi-progress"><div class="kpi-progress-bar" style="width: ${(kpiData.totalRevenue/500000000*100)}%"></div></div></td></tr>
+                <tr><td>Gross Profit</td><td>${formatCurrency(kpiData.totalProfit)}</td><td>${formatCurrency(150000000)}</td><td>${((kpiData.totalProfit/150000000)*100).toFixed(1)}%<div class="kpi-progress"><div class="kpi-progress-bar" style="width: ${(kpiData.totalProfit/150000000*100)}%"></div></div></td></tr>
+                <tr><td>Profit Margin</td><td>${(kpiData.profitMargin || 0).toFixed(1)}%</td><td>35%</td><td>${((kpiData.profitMargin/35)*100).toFixed(1)}%<div class="kpi-progress"><div class="kpi-progress-bar" style="width: ${(kpiData.profitMargin/35*100)}%"></div></div></td></tr>
+                <tr><td>PM Capacity Utilization</td><td>${(kpiData.capacityUtilization || 0).toFixed(1)}%</td><td>75%</td><td>${((kpiData.capacityUtilization/75)*100).toFixed(1)}%<div class="kpi-progress"><div class="kpi-progress-bar" style="width: ${(kpiData.capacityUtilization/75*100)}%"></div></div></td></tr>
+            `;
+        }
+
+        function updatePMTable() {
+            const tbody = document.getElementById('pmTableBody');
+            tbody.innerHTML = '';
+            pmData.forEach(pm => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${pm['Project Manager'] || ''}</strong></td>
+                    <td>${formatCurrency(pm.Confirmed || 0)}</td>
+                    <td>${formatCurrency(pm.Forecast || 0)}</td>
+                    <td>${formatCurrency(pm['Adjusted Plan (incl. 50% Forecast)'] || 0)}</td>
+                    <td>${formatCurrency(pm.Capacity || 0)}</td>
+                    <td>${((pm.Confirmed/pm.Capacity)*100 || 0).toFixed(1)}%</td>
+                    <td>${formatCurrency((pm.Capacity || 0) * 0.75)}</td>
+                    <td>${((pm.Confirmed/(pm.Capacity*0.75))*100 || 0).toFixed(1)}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showAddEntryModal() {
+            currentEditIndex = null;
+            document.getElementById('modalTitle').textContent = 'Add New Order Book Entry';
+            document.getElementById('entryForm').reset();
+            document.querySelectorAll('#entryForm input[type="number"]').forEach(inp => inp.value = '0');
+            document.getElementById('entryModal').style.display = 'flex';
+            document.getElementById('entryForm').onsubmit = function(e) { e.preventDefault(); saveNewEntry(); };
+        }
+
+        function editEntry(index) {
+            currentEditIndex = index;
+            const entry = orderBookData[index];
+            document.getElementById('modalTitle').textContent = 'Edit Order Book Entry';
+            document.getElementById('category').value = entry.Category || '';
+            document.getElementById('projectManager').value = entry['Project Manager'] || '';
+            document.getElementById('project').value = entry.Project || '';
+            document.getElementById('status').value = entry.Status || '';
+            document.getElementById('amount').value = entry.Amount || 0;
+            document.getElementById('notes').value = entry.Notes || '';
+            document.getElementById('mar26').value = entry['Mar-26'] || 0;
+            document.getElementById('apr26').value = entry['Apr-26'] || 0;
+            document.getElementById('may26').value = entry['May-26'] || 0;
+            document.getElementById('jun26').value = entry['Jun-26'] || 0;
+            document.getElementById('jul26').value = entry['Jul-26'] || 0;
+            document.getElementById('aug26').value = entry['Aug-26'] || 0;
+            document.getElementById('sep26').value = entry['Sep-26'] || 0;
+            document.getElementById('oct26').value = entry['Oct-26'] || 0;
+            document.getElementById('nov26').value = entry['Nov-26'] || 0;
+            document.getElementById('dec26').value = entry['Dec-26'] || 0;
+            document.getElementById('jan27').value = entry['Jan-27'] || 0;
+            document.getElementById('feb27').value = entry['Feb-27'] || 0;
+            document.getElementById('entryModal').style.display = 'flex';
+            document.getElementById('entryForm').onsubmit = function(e) { e.preventDefault(); updateExistingEntry(); };
+        }
+
+        function closeModal() { document.getElementById('entryModal').style.display = 'none'; }
+
+        function collectFormData() {
+            const monthlyData = {
+                'Mar-26': parseFloat(document.getElementById('mar26').value) || 0,
+                'Apr-26': parseFloat(document.getElementById('apr26').value) || 0,
+                'May-26': parseFloat(document.getElementById('may26').value) || 0,
+                'Jun-26': parseFloat(document.getElementById('jun26').value) || 0,
+                'Jul-26': parseFloat(document.getElementById('jul26').value) || 0,
+                'Aug-26': parseFloat(document.getElementById('aug26').value) || 0,
+                'Sep-26': parseFloat(document.getElementById('sep26').value) || 0,
+                'Oct-26': parseFloat(document.getElementById('oct26').value) || 0,
+                'Nov-26': parseFloat(document.getElementById('nov26').value) || 0,
+                'Dec-26': parseFloat(document.getElementById('dec26').value) || 0,
+                'Jan-27': parseFloat(document.getElementById('jan27').value) || 0,
+                'Feb-27': parseFloat(document.getElementById('feb27').value) || 0
+            };
+            const total = Object.values(monthlyData).reduce((sum, val) => sum + val, 0);
+            return {
+                Category: document.getElementById('category').value,
+                'Project Manager': document.getElementById('projectManager').value,
+                Project: document.getElementById('project').value,
+                Status: document.getElementById('status').value,
+                Amount: parseFloat(document.getElementById('amount').value) || 0,
+                Notes: document.getElementById('notes').value || '',
+                ...monthlyData, Total: total
+            };
+        }
+
+        function saveNewEntry() {
+            const entry = collectFormData();
+            if (!entry.Category || !entry['Project Manager'] || !entry.Project) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+            showNotification('Saving entry...', 'info');
+            google.script.run.withSuccessHandler(function(result) {
+                if (result.success) { closeModal(); loadData(); showNotification('Entry added successfully!', 'success'); }
+                else showNotification('Error: ' + result.error, 'error');
+            }).withFailureHandler(function(error) { showNotification('Error: ' + error.message, 'error'); }).addOrderBookEntry(entry);
+        }
+
+        function updateExistingEntry() {
+            const entry = collectFormData();
+            showNotification('Updating entry...', 'info');
+            google.script.run.withSuccessHandler(function(result) {
+                if (result.success) { closeModal(); loadData(); showNotification('Entry updated successfully!', 'success'); }
+                else showNotification('Error: ' + result.error, 'error');
+            }).withFailureHandler(function(error) { showNotification('Error: ' + error.message, 'error'); }).updateOrderBookEntry(currentEditIndex, entry);
+        }
+
+        function deleteEntry(index) {
+            if (confirm('Are you sure you want to delete this entry? This action cannot be undone.')) {
+                showNotification('Deleting entry...', 'info');
+                google.script.run.withSuccessHandler(function(result) {
+                    if (result.success) { loadData(); showNotification('Entry deleted successfully!', 'success'); }
+                    else showNotification('Error: ' + result.error, 'error');
+                }).withFailureHandler(function(error) { showNotification('Error: ' + error.message, 'error'); }).deleteOrderBookEntry(index);
+            }
+        }
+
+        function saveQuickEntry() {
+            const monthlyData = {
+                'Mar-26': parseFloat(document.getElementById('quickMar26').value) || 0,
+                'Apr-26': parseFloat(document.getElementById('quickApr26').value) || 0,
+                'May-26': parseFloat(document.getElementById('quickMay26').value) || 0,
+                'Jun-26': parseFloat(document.getElementById('quickJun26').value) || 0,
+                'Jul-26': parseFloat(document.getElementById('quickJul26').value) || 0,
+                'Aug-26': parseFloat(document.getElementById('quickAug26').value) || 0,
+                'Sep-26': parseFloat(document.getElementById('quickSep26').value) || 0,
+                'Oct-26': parseFloat(document.getElementById('quickOct26').value) || 0,
+                'Nov-26': parseFloat(document.getElementById('quickNov26').value) || 0,
+                'Dec-26': parseFloat(document.getElementById('quickDec26').value) || 0,
+                'Jan-27': parseFloat(document.getElementById('quickJan27').value) || 0,
+                'Feb-27': parseFloat(document.getElementById('quickFeb27').value) || 0
+            };
+            const total = Object.values(monthlyData).reduce((sum, val) => sum + val, 0);
+            const entry = {
+                Category: document.getElementById('quickCategory').value,
+                'Project Manager': document.getElementById('quickPM').value,
+                Project: document.getElementById('quickProject').value,
+                Status: document.getElementById('quickStatus').value,
+                Amount: parseFloat(document.getElementById('quickAmount').value) || 0,
+                Notes: document.getElementById('quickNotes').value || '',
+                ...monthlyData, Total: total
+            };
+            if (!entry.Category || !entry['Project Manager'] || !entry.Project) {
+                showNotification('Please fill in all required fields', 'error');
+                return;
+            }
+            showNotification('Saving entry...', 'info');
+            google.script.run.withSuccessHandler(function(result) {
+                if (result.success) {
+                    document.getElementById('quickAddForm').reset();
+                    document.querySelectorAll('#quickAddForm input[type="number"]').forEach(inp => inp.value = '0');
+                    loadData();
+                    showNotification('Entry added successfully!', 'success');
+                    switchTab('orderbook');
+                    document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+                    document.querySelector('.nav-tab').classList.add('active');
+                } else showNotification('Error: ' + result.error, 'error');
+            }).withFailureHandler(function(error) { showNotification('Error: ' + error.message, 'error'); }).addOrderBookEntry(entry);
+        }
+    </script>
+</body>
+</html>
