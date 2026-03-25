@@ -381,15 +381,15 @@
                 </div>
                 <div class="row mt-3"><div class="col-12"><button class="btn btn-primary rounded-pill px-4" onclick="submitInvoice()"><i class="fas fa-save me-2"></i>Save Invoice</button></div></div>
                 <hr><h6 class="fw-semibold">Today's Invoices Summary</h6>
-                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>        </table></div>
+                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>         </table></div>
             </div></div>
         </div>
         
         <!-- Order Book Tab -->
-        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book - All Projects from Projects Sheet</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>        </table></div></div></div></div>
+        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book - All Projects from Projects Sheet</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>         </table></div></div></div></div>
         
         <!-- Performance Tab -->
-        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>        </table></div></div></div></div>
+        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>         </table></div></div></div></div>
     </div>
     <div class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i></div>
 
@@ -397,7 +397,7 @@
     <script>
         // Google Sheets Configuration
         const CONFIG = { 
-            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwZEGBju2Wy9gBNo_P2MOnR6Pp7XMCTK4ATGKVtYsedMWpET_eT3hkSxHa_Kkb1VQ4/exec',
+            SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxlGUKrjmL6AtJ3scVLKeMWIDY4-TlqKYzAMrMzaFcvu7JbeacVOyn_im9YL553Z-pR/exec',
             PROJECTS_SHEET_ID: '1YNQ4pwOdddNGr-_Gef2bbxVgoW4lKsXy-roPvfFmMEM',
             PROJECTS_SHEET_NAME: 'Projects',
             REVENUE_SHEET_ID: '1XW6-Kz9_8P0MKRHZlsYfz4BCGilatiQ1FoA_MGAKeqg',
@@ -441,6 +441,19 @@
         function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
         const formatCurrency = (v) => 'R ' + Math.round(v || 0).toLocaleString();
         const parseNumber = (v) => Number(String(v).replace(/[^0-9.-]+/g, '')) || 0;
+        
+        // ✅ FIX 1 — SAFE FETCH
+        async function safeFetch(url, options = {}) {
+            const res = await fetch(url, options);
+            const text = await res.text();
+            
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                console.error("Invalid JSON response:", text);
+                throw new Error("Server did not return valid JSON");
+            }
+        }
         
         function initQualityStars() {
             const stars = document.querySelectorAll('#qualityStars .rating-star');
@@ -627,12 +640,12 @@
                         <td><strong>${p.ProjectName || 'Unknown'}</strong></td>
                         <td><span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status || 'Forecast'}</span></td>
                         <td>${formatCurrency(p.TotalIncome)}</td>
-                        <td>${p.Margin}%</td>
-                        <td>${formatCurrency(gp)}</td>
+                        <td>${p.Margin}%  \n
+                        <td>${formatCurrency(gp)}  \n
                     </tr>
                 `;
             });
-            document.getElementById('orderBookBody').innerHTML = body || '<tr><td colspan="7" class="text-center">No projects loaded from Projects sheet</td></tr>';
+            document.getElementById('orderBookBody').innerHTML = body || ' <td colspan="7" class="text-center">No projects loaded from Projects sheet</td> ';
         }
         
         function updatePerformanceTable() {
@@ -649,36 +662,36 @@
                 let statusClass = ach >= 80 ? 'badge-success' : ach >= 50 ? 'badge-warning' : 'badge-danger';
                 let statusText = ach >= 80 ? 'On Track' : ach >= 50 ? 'At Risk' : 'Behind';
                 html += `
-                    <tr>
-                        <td><strong>${m}</strong></td>
-                        <td>${formatCurrency(mgrMap[m].actual)}</td>
-                        <td>${formatCurrency(mgrMap[m].budget)}</td>
-                        <td>
+                     <tr>
+                         <td><strong>${m}</strong></td>
+                         <td>${formatCurrency(mgrMap[m].actual)}</td>
+                         <td>${formatCurrency(mgrMap[m].budget)}</td>
+                         <td>
                             <div class="progress-bar-custom w-100">
                                 <div class="progress-fill ${ach >= 80 ? 'green' : ach >= 50 ? 'orange' : 'red'}" style="width:${Math.min(100, ach)}%"></div>
                             </div> 
                             ${ach.toFixed(0)}%
-                        </td>
-                        <td><span class="badge-info">${Math.round(avgQuality)}%</span></td>
-                        <td><span class="${totalIncidents === 0 ? 'badge-success' : totalIncidents <= 2 ? 'badge-warning' : 'badge-danger'}">${totalIncidents} incidents</span></td>
-                        <td><span class="${statusClass}">${statusText}</span></td>
-                    </tr>
+                         </td>
+                         <td><span class="badge-info">${Math.round(avgQuality)}%</span></td>
+                         <td><span class="${totalIncidents === 0 ? 'badge-success' : totalIncidents <= 2 ? 'badge-warning' : 'badge-danger'}">${totalIncidents} incidents</span></td>
+                         <td><span class="${statusClass}">${statusText}</span></td>
+                     </tr>
                 `;
             }
-            document.querySelector('#perfTable tbody').innerHTML = html || '<tr><td colspan="7">No data</td></tr>';
+            document.querySelector('#perfTable tbody').innerHTML = html || ' <td colspan="7">No data</td> ';
         }
         
         function updateTodayInvoicesTable() {
             let today = new Date().toISOString().split('T')[0];
             let html = invoices.filter(i => i.date === today).map(inv => `
-                <tr>
-                    <td>${inv.projectName}</td>
-                    <td>${inv.manager}</td>
+                 <tr>
+                     <td>${inv.projectName}</td>
+                     <td>${inv.manager}</td>
                     <td class="fw-bold">${formatCurrency(inv.amount)}</td>
-                    <td>${new Date().toLocaleTimeString()}</td>
-                </tr>
+                     <td>${new Date().toLocaleTimeString()}</td>
+                 </tr>
             `).join('');
-            document.querySelector('#todayInvoicesTable tbody').innerHTML = html || '<tr><td colspan="4">No invoices today</td></tr>';
+            document.querySelector('#todayInvoicesTable tbody').innerHTML = html || ' <td colspan="4">No invoices today</td> ';
         }
         
         function calculateVariance() {
@@ -698,6 +711,7 @@
             calculateVariance();
         }
         
+        // ✅ FIX 3 — FIX POST REQUESTS
         function submitDailyRevenueWithQuality() {
             let revenue = { 
                 date: document.getElementById('revDate').value, 
@@ -711,22 +725,30 @@
             
             fetch(CONFIG.SCRIPT_URL, {
                 method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'addRevenue', data: revenue })
+                body: JSON.stringify({
+                    action: 'addRevenue',
+                    data: revenue
+                })
             })
-            .then(res => res.json())
-            .then(result => {
-                if(result.success) {
+            .then(res => res.text())
+            .then(text => {
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    throw new Error("Invalid JSON from server");
+                }
+                
+                if (result.success) {
                     alert('Revenue saved to Google Sheets!');
                     loadAllData();
                 } else {
-                    alert('Error saving: ' + (result.error || 'Unknown error'));
+                    alert('Error: ' + (result.error || 'Unknown error'));
                 }
             })
             .catch(err => {
                 console.error('Save error:', err);
-                alert('Error saving to Google Sheets. Saved locally only.');
+                alert('Failed to connect to Google Sheets. Saved locally only.');
                 dailyEntries.push(revenue);
                 refreshAllUI();
             });
@@ -740,22 +762,30 @@
             
             fetch(CONFIG.SCRIPT_URL, {
                 method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'addInvoice', data: invoice })
+                body: JSON.stringify({
+                    action: 'addInvoice',
+                    data: invoice
+                })
             })
-            .then(res => res.json())
-            .then(result => {
-                if(result.success) {
+            .then(res => res.text())
+            .then(text => {
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    throw new Error("Invalid JSON from server");
+                }
+                
+                if (result.success) {
                     alert('Invoice saved to Google Sheets!');
                     loadAllData();
                 } else {
-                    alert('Error saving: ' + (result.error || 'Unknown error'));
+                    alert('Error: ' + (result.error || 'Unknown error'));
                 }
             })
             .catch(err => {
                 console.error('Save error:', err);
-                alert('Error saving to Google Sheets. Saved locally only.');
+                alert('Failed to connect to Google Sheets. Saved locally only.');
                 invoices.push(invoice);
                 refreshAllUI();
             });
@@ -775,23 +805,31 @@
             
             fetch(CONFIG.SCRIPT_URL, {
                 method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'addProject', data: project })
+                body: JSON.stringify({
+                    action: 'addProject',
+                    data: project
+                })
             })
-            .then(res => res.json())
-            .then(result => {
-                if(result.success) {
+            .then(res => res.text())
+            .then(text => {
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    throw new Error("Invalid JSON from server");
+                }
+                
+                if (result.success) {
                     alert('Project saved to Google Sheets!');
                     loadAllData();
                     document.getElementById('projectForm').reset();
                 } else {
-                    alert('Error saving: ' + (result.error || 'Unknown error'));
+                    alert('Error: ' + (result.error || 'Unknown error'));
                 }
             })
             .catch(err => {
                 console.error('Save error:', err);
-                alert('Error saving to Google Sheets.');
+                alert('Failed to connect to Google Sheets.');
             });
         }
         
@@ -808,13 +846,14 @@
             if(document.getElementById('revManager')) document.getElementById('revManager').addEventListener('change', updateDailyBudget);
         }
         
+        // ✅ FIX 2 — UPDATE loadAllData() WITH SAFE FETCH
         async function loadAllData() {
             showLoading("Fetching live data from Google Sheets...");
             try {
-                // Fetch Projects from Projects Sheet
-                const projectsRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getProjects`, { method: 'GET', mode: 'cors' });
-                if (!projectsRes.ok) throw new Error(`HTTP ${projectsRes.status}: Failed to fetch projects`);
-                let projectsRaw = await projectsRes.json();
+                // Fetch Projects
+                const projectsRaw = await safeFetch(`${CONFIG.SCRIPT_URL}?action=getProjects&_=${Date.now()}`);
+                console.log("RAW PROJECTS RESPONSE:", projectsRaw);
+                
                 let projectsData = projectsRaw.data || (Array.isArray(projectsRaw) ? projectsRaw : []);
                 projects = projectsData.map(p => ({ 
                     ...p, 
@@ -830,9 +869,9 @@
                 console.log("Projects loaded:", projects.length);
                 
                 // Fetch Revenue
-                const revenueRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getRevenue`, { method: 'GET', mode: 'cors' });
-                if (!revenueRes.ok) throw new Error(`HTTP ${revenueRes.status}: Failed to fetch revenue`);
-                let revenueRaw = await revenueRes.json();
+                const revenueRaw = await safeFetch(`${CONFIG.SCRIPT_URL}?action=getRevenue&_=${Date.now()}`);
+                console.log("RAW REVENUE RESPONSE:", revenueRaw);
+                
                 let revenueData = revenueRaw.data || (Array.isArray(revenueRaw) ? revenueRaw : []);
                 dailyEntries = revenueData.map(r => ({ 
                     date: (r.Date || r.date || '').toString().split('T')[0],
@@ -846,19 +885,16 @@
                 console.log("Revenue loaded:", dailyEntries.length);
                 
                 // Fetch Invoices separately
-                const invoiceRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getInvoices`, { method: 'GET', mode: 'cors' });
-                if (invoiceRes.ok) {
-                    let invoiceRaw = await invoiceRes.json();
-                    let invoiceData = invoiceRaw.data || (Array.isArray(invoiceRaw) ? invoiceRaw : []);
-                    invoices = invoiceData.map(i => ({
-                        date: (i.Date || i.date || '').toString().split('T')[0],
-                        manager: i.Manager || i.manager,
-                        projectName: i.ProjectName || i.projectName,
-                        amount: parseNumber(i.Amount || i.amount)
-                    }));
-                } else {
-                    invoices = dailyEntries.filter(e => e.date === new Date().toISOString().split('T')[0]);
-                }
+                const invoiceRaw = await safeFetch(`${CONFIG.SCRIPT_URL}?action=getInvoices&_=${Date.now()}`);
+                console.log("RAW INVOICE RESPONSE:", invoiceRaw);
+                
+                let invoiceData = invoiceRaw.data || (Array.isArray(invoiceRaw) ? invoiceRaw : []);
+                invoices = invoiceData.map(i => ({
+                    date: (i.Date || i.date || '').toString().split('T')[0],
+                    manager: i.Manager || i.manager,
+                    projectName: i.ProjectName || i.projectName,
+                    amount: parseNumber(i.Amount || i.amount)
+                }));
                 
                 console.log("Invoices loaded:", invoices.length);
                 
