@@ -381,15 +381,15 @@
                 </div>
                 <div class="row mt-3"><div class="col-12"><button class="btn btn-primary rounded-pill px-4" onclick="submitInvoice()"><i class="fas fa-save me-2"></i>Save Invoice</button></div></div>
                 <hr><h6 class="fw-semibold">Today's Invoices Summary</h6>
-                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>    </table></div>
+                <div class="table-container"><table class="table-modern w-100" id="todayInvoicesTable"><thead><th>Project</th><th>Manager</th><th>Amount</th><th>Time</th></thead><tbody></tbody>      </table></div>
             </div></div>
         </div>
         
         <!-- Order Book Tab -->
-        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>    </table></div></div></div></div>
+        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book - All Projects from Projects Sheet</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>      </table></div></div></div></div>
         
         <!-- Performance Tab -->
-        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>    </table></div></div></div></div>
+        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>      </table></div></div></div></div>
     </div>
     <div class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i></div>
 
@@ -471,16 +471,20 @@
         }
         
         function updateOrderBookSummary() {
+            // Calculate all values from projects array (from Projects sheet)
             const confirmedTotal = projects.filter(p => p.Status === 'Confirmed').reduce((s, p) => s + p.TotalIncome, 0);
             const forecastTotal = projects.filter(p => p.Status === 'Forecast').reduce((s, p) => s + p.TotalIncome, 0);
+            const totalOrderBook = confirmedTotal + forecastTotal;
+            const groupBTYE = forecastTotal + (confirmedTotal * 1.5);
             const mtdActual = dailyEntries.filter(e => {
                 if(!e.date) return false;
                 return new Date(e.date).getMonth() === new Date().getMonth();
             }).reduce((s, e) => s + e.amount, 0);
+            
             document.getElementById('totalConfirmed').innerHTML = formatCurrency(confirmedTotal);
             document.getElementById('totalForecast').innerHTML = formatCurrency(forecastTotal);
-            document.getElementById('totalOrderBook').innerHTML = formatCurrency(confirmedTotal + forecastTotal);
-            document.getElementById('groupBTYE').innerHTML = formatCurrency(forecastTotal + (confirmedTotal * 1.5));
+            document.getElementById('totalOrderBook').innerHTML = formatCurrency(totalOrderBook);
+            document.getElementById('groupBTYE').innerHTML = formatCurrency(groupBTYE);
             document.getElementById('mtdActual').innerHTML = formatCurrency(mtdActual);
         }
         
@@ -603,18 +607,25 @@
         }
         
         function updateOrderBook() {
-            let headers = '<th>Division</th><th>Manager</th><th>Project</th><th>Status</th><th>Total Income</th><th>Gross Profit</th>';
+            // Order Book displays all projects from the Projects sheet - FIXED table row structure
+            let headers = '<th>Division</th><th>Manager</th><th>Project Name</th><th>Status</th><th>Total Income (R)</th><th>Margin %</th><th>Gross Profit (R)</th>';
             document.getElementById('orderBookHeader').innerHTML = headers;
             let body = '';
-            projects.forEach(p => { let gp = p.TotalIncome * (p.Margin / 100); body += `tr
-                   ．${p.Division || 'Onpoint'}． 
-                   ．${p.Manager}． 
-                   ．<strong>${p.ProjectName}</strong>． 
-                   ．<span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status}</span>． 
-                   ．${formatCurrency(p.TotalIncome)}． 
-                   ．${formatCurrency(gp)}． 
-               `; });
-            document.getElementById('orderBookBody').innerHTML = body || ' <td colspan="6">No projects loaded</td> ';
+            projects.forEach(p => { 
+                let gp = p.TotalIncome * (p.Margin / 100);
+                body += `
+                    <tr>
+                        <td>${p.Division || 'Onpoint Group'}</td>
+                        <td>${p.Manager || 'Unassigned'}</td>
+                        <td><strong>${p.ProjectName || 'Unknown'}</strong></td>
+                        <td><span class="badge-${p.Status === 'Confirmed' ? 'success' : 'warning'}">${p.Status || 'Forecast'}</span></td>
+                        <td>${formatCurrency(p.TotalIncome)}</td>
+                        <td>${p.Margin}%</td>
+                        <td>${formatCurrency(gp)}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('orderBookBody').innerHTML = body || '<tr><td colspan="7" class="text-center">No projects loaded from Projects sheet</td></tr>';
         }
         
         function updatePerformanceTable() {
@@ -630,28 +641,37 @@
                 let totalIncidents = mgrMap[m].safety;
                 let statusClass = ach >= 80 ? 'badge-success' : ach >= 50 ? 'badge-warning' : 'badge-danger';
                 let statusText = ach >= 80 ? 'On Track' : ach >= 50 ? 'At Risk' : 'Behind';
-                html += ` 
-                     <td><strong>${m}</strong></td>
-                     <td>${formatCurrency(mgrMap[m].actual)}</td>
-                     <td>${formatCurrency(mgrMap[m].budget)}</td>
-                     <td><div class="progress-bar-custom w-100"><div class="progress-fill ${ach >= 80 ? 'green' : ach >= 50 ? 'orange' : 'red'}" style="width:${Math.min(100, ach)}%"></div></div> ${ach.toFixed(0)}%</td>
-                     <td><span class="badge-info">${Math.round(avgQuality)}%</span></td>
-                     <td><span class="${totalIncidents === 0 ? 'badge-success' : totalIncidents <= 2 ? 'badge-warning' : 'badge-danger'}">${totalIncidents} incidents</span></td>
-                     <td><span class="${statusClass}">${statusText}</span></td>
-                 `;
+                html += `
+                    <tr>
+                        <td><strong>${m}</strong></td>
+                        <td>${formatCurrency(mgrMap[m].actual)}</td>
+                        <td>${formatCurrency(mgrMap[m].budget)}</td>
+                        <td>
+                            <div class="progress-bar-custom w-100">
+                                <div class="progress-fill ${ach >= 80 ? 'green' : ach >= 50 ? 'orange' : 'red'}" style="width:${Math.min(100, ach)}%"></div>
+                            </div> 
+                            ${ach.toFixed(0)}%
+                        </td>
+                        <td><span class="badge-info">${Math.round(avgQuality)}%</span></td>
+                        <td><span class="${totalIncidents === 0 ? 'badge-success' : totalIncidents <= 2 ? 'badge-warning' : 'badge-danger'}">${totalIncidents} incidents</span></td>
+                        <td><span class="${statusClass}">${statusText}</span></td>
+                    </tr>
+                `;
             }
-            document.querySelector('#perfTable tbody').innerHTML = html || ' <td colspan="7">No data</td> ';
+            document.querySelector('#perfTable tbody').innerHTML = html || '<tr><td colspan="7">No data</td></tr>';
         }
         
         function updateTodayInvoicesTable() {
             let today = new Date().toISOString().split('T')[0];
-            let html = invoices.filter(i => i.date === today).map(inv => ` 
-                 <td>${inv.projectName}</td>
-                 <td>${inv.manager}</td>
-                 <td class="fw-bold">${formatCurrency(inv.amount)}</td>
-                 <td>${new Date().toLocaleTimeString()}</td>
-             `).join('');
-            document.querySelector('#todayInvoicesTable tbody').innerHTML = html || ' <td colspan="4">No invoices today</td> ';
+            let html = invoices.filter(i => i.date === today).map(inv => `
+                <tr>
+                    <td>${inv.projectName}</td>
+                    <td>${inv.manager}</td>
+                    <td class="fw-bold">${formatCurrency(inv.amount)}</td>
+                    <td>${new Date().toLocaleTimeString()}</td>
+                </tr>
+            `).join('');
+            document.querySelector('#todayInvoicesTable tbody').innerHTML = html || '<tr><td colspan="4">No invoices today</td></tr>';
         }
         
         function calculateVariance() {
@@ -784,7 +804,7 @@
         async function loadAllData() {
             showLoading("Fetching live data from Google Sheets...");
             try {
-                // Fetch Projects
+                // Fetch Projects from Projects Sheet ID: 1YNQ4pwOdddNGr-_Gef2bbxVgoW4lKsXy-roPvfFmMEM
                 const projectsRes = await fetch(`${CONFIG.SCRIPT_URL}?action=getProjects`, { method: 'GET', mode: 'cors' });
                 if (!projectsRes.ok) throw new Error(`HTTP ${projectsRes.status}: Failed to fetch projects`);
                 let projectsRaw = await projectsRes.json();
@@ -863,7 +883,7 @@
         document.querySelectorAll('.nav-tab-modern').forEach(tab => tab.addEventListener('click', () => { document.querySelectorAll('.nav-tab-modern').forEach(t => t.classList.remove('active')); document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active')); tab.classList.add('active'); document.getElementById(tab.dataset.tab).classList.add('active'); if(tab.dataset.tab === 'orderbook') updateOrderBook(); if(tab.dataset.tab === 'performance') updatePerformanceTable(); }));
         
         function exportFullReport() { 
-            let csv = 'Division,Manager,Project,Status,Total Income\n' + projects.map(p => `${p.Division},${p.Manager},${p.ProjectName},${p.Status},${p.TotalIncome}`).join('\n');
+            let csv = 'Division,Manager,Project,Status,Total Income,Margin %,Gross Profit\n' + projects.map(p => `${p.Division},${p.Manager},${p.ProjectName},${p.Status},${p.TotalIncome},${p.Margin},${p.TotalIncome * (p.Margin/100)}`).join('\n');
             let blob = new Blob([csv], {type:'text/csv'}); let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'orderbook_report.csv'; a.click(); 
         }
         
