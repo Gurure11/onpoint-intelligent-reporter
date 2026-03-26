@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OnPoint Group - Project Management Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* All your existing styles remain exactly the same */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1e3c72;
+            --secondary-color: #2a5298;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-text: #2c3e50;
+            --border-color: #dee2e6;
+            --gradient-primary: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f0f2f5;
+            color: var(--dark-text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .logo h1 {
+            font-size: 2em;
+            font-weight: 700;
+        }
+
+        .logo span {
+            font-weight: 300;
+            opacity: 0.9;
+        }
+
+        .connection-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 50px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #f39c12;
+        }
+
+        .status-dot.connected {
+            background: #27ae60;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-subtitle {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .filters-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .filters-grid {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 2;
+            min-width: 300px;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+
+        .filter-select {
+            padding: 12px 25px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 180px;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .entry-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-header h3 {
+            color: var(--primary-color);
+            font-size: 18px;
+        }
+
+        .entry-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .form-group select, .form-group input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .btn-save-entry {
+            background: var(--success-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            height: 42px;
+        }
+
+        .btn-save-entry:hover {
+            background: #219a52;
+        }
+
+        .project-section {
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .project-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .project-header.onpoint {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+        }
+
+        .project-header.aqua {
+            background: linear-gradient(135deg, #0f4c5c, #1e7a8c);
+            color: white;
+        }
+
+        .project-header.nkanyezi {
+            background: linear-gradient(135deg, #6b4f8c, #8e6ab8);
+            color: white;
+        }
+
+        .project-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .project-totals {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .total-item {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            padding: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1400px;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: var(--primary-color);
+            padding: 15px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: left;
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+
+        tbody tr:hover {
+            background: #f5f5f5;
+        }
+
+        .risk-high {
+            color: #e74c3c;
+            font-weight: 700;
+        }
+
+        .risk-medium {
+            color: #f39c12;
+            font-weight: 700;
+        }
+
+        .risk-low {
+            color: #27ae60;
+            font-weight: 700;
+        }
+
+        .actual-cell {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .actual-input {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: right;
+        }
+
+        .save-btn {
+            padding: 5px 8px;
+            background: var(--success-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            animation: slideIn 0.3s;
+            z-index: 2000;
+        }
+
+        .message.success {
+            background: var(--success-color);
+        }
+
+        .message.error {
+            background: var(--danger-color);
+        }
+
+        .message.warning {
+            background: var(--warning-color);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .filters-grid {
+                flex-direction: column;
+            }
+            
+            .search-box, .filter-select {
+                width: 100%;
+            }
+            
+            .project-totals {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .entry-form {
+                grid-template-columns: 1fr;
+            }
+            .class{
+                color: white;
+                font-size: 25px;
+                text-align: center;
+                align-items: center;
+                
+            }
+            .class:hover{
+                color: green;
+                background-color: yellow;
+                opacity: 0.7;
+                transition: 0.6s;
+                cursor: pointer;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>OnPoint <span>Group</span></h1>
+                    <div class="connection-info">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">Project Management Dashboard</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="exportToCSV()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="btn btn-success" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" id="loadSheetBtn" onclick="loadFromScript()">
+                        <i class="fas fa-cloud-download-alt"></i> Load from Sheet
+                    </button>
+                    <button class="btn btn-success" id="saveSheetBtn" onclick="saveToScript()">
+                        <i class="fas fa-cloud-upload-alt"></i> Save to Drive
+                    </button>
+                </div>
+            </div>
+        </div><br><br>
+        
+        <div>
+            <a class="love" href="index.html">Home page</a>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="stats-container" id="statsContainer">
+            <!-- Dynamically populated -->
+        </div>
+
+        <!-- Data Entry Panel -->
+        <div class="entry-panel">
+            <div class="panel-header">
+                <h3><i class="fas fa-pen"></i> New Project Entry</h3>
+            </div>
+            <div class="entry-form" id="entryForm">
+                <div class="form-group">
+                    <label>Cost Center *</label>
+                    <select id="costCenter" required>
+                        <option value="">Select Cost Center</option>
+                        <option value="OnPoint">OnPoint</option>
+                        <option value="Aqua Telecoms">Aqua Telecoms</option>
+                        <option value="Nkanyezi">Nkanyezi</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Department *</label>
+                    <select id="department" required>
+                        <option value="">Select Department</option>
+                        <option value="Operations">Operations</option>
+                        <option value="Projects">Projects</option>
+                        <option value="Site">Site</option>
+                        <option value="Management">Management</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Project Manager *</label>
+                    <select id="managerName" required>
+                        <option value="">Select Manager</option>
+                        <option value="On Point">On Point</option>
+                        <option value="Moses">Moses</option>
+                        <option value="Johan">Johan</option>
+                        <option value="Siyanda">Siyanda</option>
+                        <option value="Dave">Dave</option>
+                        <option value="James">James</option>
+                        <option value="Rayman">Rayman</option>
+                        <option value="Timothy">Timothy</option>
+                        <option value="Roads Site Agent COT">Roads Site Agent COT</option>
+                        <option value="Civil Site Agent">Civil Site Agent</option>
+                        <option value="Roads Site Agent CPT">Roads Site Agent CPT</option>
+                        <option value="Brian">Brian</option>
+                        <option value="EL CM">EL CM</option>
+                        <option value="Stanley">Stanley</option>
+                        <option value="Tony">Tony</option>
+                        <option value="Aqua Telecoms">Aqua Telecoms</option>
+                        <option value="Stanley (Aqua)">Stanley (Aqua)</option>
+                        <option value="Govern">Govern</option>
+                        <option value="Graham">Graham</option>
+                        <option value="Ronald">Ronald</option>
+                        <option value="Petros">Petros</option>
+                        <option value="Elroy">Elroy</option>
+                        <option value="Mesh">Mesh</option>
+                        <option value="Vusi">Vusi</option>
+                        <option value="Tinotenda">Tinotenda</option>
+                        <option value="Sydney">Sydney</option>
+                        <option value="Andrew">Andrew</option>
+                        <option value="Nkanyezi">Nkanyezi</option>
+                        <option value="Phillip">Phillip</option>
+                        <option value="Moeti">Moeti</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Confirmed (R)</label>
+                    <input type="number" id="confirmed" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Forecast (R)</label>
+                    <input type="number" id="forecast" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Capacity (R)</label>
+                    <input type="number" id="capacity" step="0.01" value="0">
+                </div>
+                <button class="btn-save-entry" onclick="addNewEntry()">
+                    <i class="fas fa-plus"></i> Add Entry
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+            <div class="filters-grid">
+                <input type="text" id="searchInput" class="search-box" placeholder="Search by Project Manager..." onkeyup="filterData()">
+                <select id="projectFilter" class="filter-select" onchange="filterData()">
+                    <option value="">All Cost Centers</option>
+                    <option value="OnPoint">OnPoint</option>
+                    <option value="Aqua Telecoms">Aqua Telecoms</option>
+                    <option value="Nkanyezi">Nkanyezi</option>
+                </select>
+                <select id="riskFilter" class="filter-select" onchange="filterData()">
+                    <option value="">All Risk Levels</option>
+                    <option value="high">High Risk (>100%)</option>
+                    <option value="medium">Medium Risk (70-100%)</option>
+                    <option value="low">Low Risk (<70%)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Projects Container -->
+        <div id="projectsContainer">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // =============================================
+        // GOOGLE APPS SCRIPT WEB APP URL
+        // =============================================
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyz1eIIxEUlSK_k9F1ANQxx7IRJPYQSspfSiBIPVMkeQ1lCWMUJ2QfAi9SJqi1Drm3z4w/exec';
+        
+        // =============================================
+        // MASTER DATA WITH EXACT PERCENTAGES FROM YOUR TABLE
+        // =============================================
+        let masterData = {
+            projects: [
+                {
+                    name: 'OnPoint',
+                    color: 'onpoint',
+                    managers: [
+                        { name: 'On Point', confirmed: 347014157, forecast: 323665217, capacity: 1300000000, confCapPct: '39%', confAdjPct: '52%' },
+                        { name: 'Moses', confirmed: 45100000, forecast: 18100000, capacity: 100000000, confCapPct: '54%', confAdjPct: '72%' },
+                        { name: 'Johan', confirmed: 21000000, forecast: 0, capacity: 150000000, confCapPct: '14%', confAdjPct: '19%' },
+                        { name: 'Siyanda', confirmed: 15000000, forecast: 0, capacity: 100000000, confCapPct: '15%', confAdjPct: '20%' },
+                        { name: 'Dave', confirmed: 68479374, forecast: 0, capacity: 100000000, confCapPct: '68%', confAdjPct: '91%' },
+                        { name: 'James', confirmed: 58800000, forecast: 0, capacity: 100000000, confCapPct: '59%', confAdjPct: '78%' },
+                        { name: 'Rayman', confirmed: 74434783, forecast: 25565217, capacity: 100000000, confCapPct: '74%', confAdjPct: '116%' },
+                        { name: 'Timothy', confirmed: 15000000, forecast: 20000000, capacity: 100000000, confCapPct: '15%', confAdjPct: '33%' },
+                        { name: 'Roads Site Agent COT', confirmed: 0, forecast: 30000000, capacity: 50000000, confCapPct: '0%', confAdjPct: '40%' },
+                        { name: 'Civil Site Agent', confirmed: 0, forecast: 20000000, capacity: 50000000, confCapPct: '0%', confAdjPct: '27%' },
+                        { name: 'Roads Site Agent CPT', confirmed: 0, forecast: 120000000, capacity: 150000000, confCapPct: '0%', confAdjPct: '53%' },
+                        { name: 'Brian', confirmed: 26000000, forecast: 25000000, capacity: 50000000, confCapPct: '52%', confAdjPct: '103%' },
+                        { name: 'EL CM', confirmed: 3600000, forecast: 20000000, capacity: 100000000, confCapPct: '4%', confAdjPct: '18%' },
+                        { name: 'Stanley', confirmed: 19600000, forecast: 40000000, capacity: 100000000, confCapPct: '20%', confAdjPct: '53%' },
+                        { name: 'Tony', confirmed: 0, forecast: 5000000, capacity: 50000000, confCapPct: '0%', confAdjPct: '7%' }
+                    ]
+                },
+                {
+                    name: 'Aqua Telecoms',
+                    color: 'aqua',
+                    managers: [
+                        { name: 'Aqua Telecoms', confirmed: 150034021, forecast: 73000000, capacity: 790000000, confCapPct: '19%', confAdjPct: '31%' },
+                        { name: 'Stanley (Aqua)', confirmed: 46034021, forecast: 0, capacity: 50000000, confCapPct: '92%', confAdjPct: '123%' },
+                        { name: 'Govern', confirmed: 22000000, forecast: 41000000, capacity: 100000000, confCapPct: '22%', confAdjPct: '57%' },
+                        { name: 'Graham', confirmed: 10000000, forecast: 6000000, capacity: 50000000, confCapPct: '20%', confAdjPct: '35%' },
+                        { name: 'Ronald', confirmed: 0, forecast: 0, capacity: 100000000, confCapPct: '0%', confAdjPct: '0%' },
+                        { name: 'Petros', confirmed: 0, forecast: 0, capacity: 50000000, confCapPct: '0%', confAdjPct: '0%' },
+                        { name: 'Elroy', confirmed: 12000000, forecast: 6000000, capacity: 75000000, confCapPct: '16%', confAdjPct: '27%' },
+                        { name: 'Mesh', confirmed: 12000000, forecast: 0, capacity: 75000000, confCapPct: '16%', confAdjPct: '21%' },
+                        { name: 'Vusi', confirmed: 0, forecast: 12000000, capacity: 50000000, confCapPct: '0%', confAdjPct: '16%' },
+                        { name: 'Tinotenda', confirmed: 18000000, forecast: 0, capacity: 15000000, confCapPct: '120%', confAdjPct: '160%' },
+                        { name: 'Sydney', confirmed: 30000000, forecast: 0, capacity: 75000000, confCapPct: '40%', confAdjPct: '53%' },
+                        { name: 'Andrew', confirmed: 0, forecast: 8000000, capacity: 150000000, confCapPct: '0%', confAdjPct: '4%' }
+                    ]
+                },
+                {
+                    name: 'Nkanyezi',
+                    color: 'nkanyezi',
+                    managers: [
+                        { name: 'Nkanyezi', confirmed: 12700000, forecast: 19400000, capacity: 300000000, confCapPct: '4%', confAdjPct: '10%' },
+                        { name: 'Phillip', confirmed: 9700000, forecast: 7400000, capacity: 150000000, confCapPct: '6%', confAdjPct: '12%' },
+                        { name: 'Moeti', confirmed: 3000000, forecast: 12000000, capacity: 150000000, confCapPct: '2%', confAdjPct: '8%' }
+                    ]
+                }
+            ]
+        };
+
+        // Daily actuals storage
+        let dailyActuals = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved actuals from localStorage
+            loadSavedActuals();
+            
+            // Render dashboard
+            renderDashboard();
+            updateStats();
+            
+            // Update connection status
+            document.getElementById('statusDot').classList.add('connected');
+            document.getElementById('statusText').textContent = 'Connected • Ready';
+        });
+
+        // Load data from Google Apps Script
+        function loadFromScript() {
+            showLoading();
+            
+            fetch(SCRIPT_URL + '?action=getData')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.rows && data.rows.length > 0) {
+                        // Process the data (similar to before but with the response format)
+                        data.rows.forEach(row => {
+                            const costCenter = row.costCenter || '';
+                            const managerName = row.managerName || '';
+                            const confirmed = parseFloat(row.confirmed) || 0;
+                            const forecast = parseFloat(row.forecast) || 0;
+                            const capacity = parseFloat(row.capacity) || 0;
+                            const dailyActual = parseFloat(row.dailyActual) || 0;
+                            
+                            // Skip summary rows
+                            if (managerName === costCenter || 
+                                managerName === 'On Point' || 
+                                managerName === 'Aqua Telecoms' || 
+                                managerName === 'Nkanyezi') {
+                                return;
+                            }
+                            
+                            // Find the project
+                            const project = masterData.projects.find(p => p.name === costCenter);
+                            if (project) {
+                                // Find or create manager
+                                let manager = project.managers.find(m => m.name === managerName);
+                                if (manager) {
+                                    manager.confirmed = confirmed;
+                                    manager.forecast = forecast;
+                                    manager.capacity = capacity;
+                                } else {
+                                    project.managers.push({
+                                        name: managerName,
+                                        confirmed: confirmed,
+                                        forecast: forecast,
+                                        capacity: capacity,
+                                        confCapPct: calculatePercentage(confirmed, capacity),
+                                        confAdjPct: calculateAdjustedPercentage(confirmed, forecast, capacity)
+                                    });
+                                }
+                                
+                                // Store daily actual
+                                if (dailyActual > 0) {
+                                    const actualKey = `${costCenter}_${managerName}`;
+                                    dailyActuals[actualKey] = dailyActual;
+                                }
+                            }
+                        });
+                        
+                        // Recalculate percentages
+                        recalculatePercentages();
+                        
+                        // Save to localStorage
+                        saveActuals();
+                        
+                        // Re-render
+                        renderDashboard();
+                        updateStats();
+                        
+                        showMessage('Data loaded from Google Sheets successfully!', 'success');
+                    }
+                    hideLoading();
+                })
+                .catch(error => {
+                    console.error('Error loading from script:', error);
+                    showMessage('Failed to load from Google Sheets', 'error');
+                    hideLoading();
+                });
+        }
+
+        // Save to Google Apps Script
+        function saveToScript() {
+            showLoading();
+            
+            // Prepare data to save
+            const saveData = [];
+            
+            masterData.projects.forEach(project => {
+                project.managers.forEach(manager => {
+                    // Skip summary rows
+                    if (manager.name === project.name || 
+                        manager.name === 'On Point' || 
+                        manager.name === 'Aqua Telecoms' || 
+                        manager.name === 'Nkanyezi') {
+                        return;
+                    }
+                    
+                    const actualKey = `${project.name}_${manager.name}`;
+                    const dailyActual = dailyActuals[actualKey] || 0;
+                    
+                    saveData.push({
+                        costCenter: project.name,
+                        managerName: manager.name,
+                        confirmed: manager.confirmed,
+                        forecast: manager.forecast,
+                        capacity: manager.capacity,
+                        dailyActual: dailyActual
+                    });
+                });
+            });
+            
+            // Send data to script
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Important for CORS issues with Apps Script
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'saveData',
+                    data: saveData
+                })
+            }).then(() => {
+                showMessage('Data saved to Google Drive successfully!', 'success');
+                hideLoading();
+            }).catch(error => {
+                console.error('Error saving to script:', error);
+                showMessage('Failed to save to Google Drive. Downloading CSV instead.', 'warning');
+                
+                // Fallback to CSV download
+                exportToCSV();
+                hideLoading();
+            });
+        }
+
+        // Helper function to calculate percentage
+        function calculatePercentage(confirmed, capacity) {
+            if (capacity === 0) return '0%';
+            const pct = (confirmed / capacity) * 100;
+            return Math.round(pct) + '%';
+        }
+
+        // Helper function to calculate adjusted percentage
+        function calculateAdjustedPercentage(confirmed, forecast, capacity) {
+            if (capacity === 0) return '0%';
+            const adjustedPlan = confirmed + (forecast * 0.5);
+            const adjustedCapacity = capacity * 0.75;
+            if (adjustedCapacity === 0) return '0%';
+            const pct = (adjustedPlan / adjustedCapacity) * 100;
+            return Math.round(pct) + '%';
+        }
+
+        // Recalculate percentages for all managers
+        function recalculatePercentages() {
+            masterData.projects.forEach(project => {
+                project.managers.forEach(manager => {
+                    manager.confCapPct = calculatePercentage(manager.confirmed, manager.capacity);
+                    manager.confAdjPct = calculateAdjustedPercentage(manager.confirmed, manager.forecast, manager.capacity);
+                });
+            });
+        }
+
+        // Load saved actuals from localStorage
+        function loadSavedActuals() {
+            const saved = localStorage.getItem('dailyActuals');
+            if (saved) {
+                dailyActuals = JSON.parse(saved);
+            }
+        }
+
+        // Save actuals to localStorage
+        function saveActuals() {
+            localStorage.setItem('dailyActuals', JSON.stringify(dailyActuals));
+        }
+
+        // Format number with commas
+        function formatNumber(num) {
+            return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Format currency
+        function formatCurrency(num) {
+            return 'R ' + formatNumber(num);
+        }
+
+        // Get risk class based on percentage
+        function getRiskClass(percentage) {
+            const value = parseInt(percentage) || 0;
+            if (value > 100) return 'risk-high';
+            if (value > 70) return 'risk-medium';
+            return 'risk-low';
+        }
+
+        // Calculate project totals (excluding summary rows)
+        function calculateProjectTotals(managers, projectName) {
+            return managers.reduce((acc, manager) => {
+                // Skip summary rows (manager name equals project name)
+                if (manager.name === projectName || 
+                    manager.name === 'On Point' || 
+                    manager.name === 'Aqua Telecoms' || 
+                    manager.name === 'Nkanyezi') {
+                    return acc;
+                }
+                return {
+                    confirmed: acc.confirmed + manager.confirmed,
+                    forecast: acc.forecast + manager.forecast,
+                    capacity: acc.capacity + manager.capacity
+                };
+            }, { confirmed: 0, forecast: 0, capacity: 0 });
+        }
+
+        // Update summary stats
+        function updateStats() {
+            let totalConfirmed = 0;
+            let totalForecast = 0;
+            let totalCapacity = 0;
+            let highRiskCount = 0;
+
+            masterData.projects.forEach(project => {
+                project.managers.forEach(manager => {
+                    // Skip summary rows
+                    if (manager.name === project.name || 
+                        manager.name === 'On Point' || 
+                        manager.name === 'Aqua Telecoms' || 
+                        manager.name === 'Nkanyezi') {
+                        return;
+                    }
+                    
+                    totalConfirmed += manager.confirmed;
+                    totalForecast += manager.forecast;
+                    totalCapacity += manager.capacity;
+                    
+                    const percentage = parseInt(manager.confAdjPct) || 0;
+                    if (percentage > 100) highRiskCount++;
+                });
+            });
+
+            const statsHTML = `
+                <div class="stat-card">
+                    <h3>Total Confirmed</h3>
+                    <div class="stat-value">${formatCurrency(totalConfirmed)}</div>
+                    <div class="stat-subtitle">Across all projects</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Forecast</h3>
+                    <div class="stat-value">${formatCurrency(totalForecast)}</div>
+                    <div class="stat-subtitle">Projected revenue</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Capacity</h3>
+                    <div class="stat-value">${formatCurrency(totalCapacity)}</div>
+                    <div class="stat-subtitle">Available resources</div>
+                </div>
+                <div class="stat-card">
+                    <h3>High Risk Projects</h3>
+                    <div class="stat-value">${highRiskCount}</div>
+                    <div class="stat-subtitle">Over 100% utilization</div>
+                </div>
+            `;
+
+            document.getElementById('statsContainer').innerHTML = statsHTML;
+        }
+
+        // Render the main dashboard
+        function renderDashboard() {
+            let html = '';
+
+            masterData.projects.forEach(project => {
+                const totals = calculateProjectTotals(project.managers, project.name);
+                
+                html += `
+                    <div class="project-section">
+                        <div class="project-header ${project.color}">
+                            <span class="project-title">${project.name}</span>
+                            <div class="project-totals">
+                                <span class="total-item">Conf: ${formatCurrency(totals.confirmed)}</span>
+                                <span class="total-item">Fest: ${formatCurrency(totals.forecast)}</span>
+                                <span class="total-item">Cap: ${formatCurrency(totals.capacity)}</span>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Project Manager</th>
+                                        <th>Confirmed (R)</th>
+                                        <th>Forecast (R)</th>
+                                        <th>Adjusted Plan (50%)</th>
+                                        <th>Capacity (R)</th>
+                                        <th>Confirmed/Capacity %</th>
+                                        <th>Adjusted Capacity (75%)</th>
+                                        <th>Confirmed/Adjusted %</th>
+                                        <th>Daily Actual</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                project.managers.forEach(manager => {
+                    // Skip summary rows
+                    if (manager.name === project.name || 
+                        manager.name === 'On Point' || 
+                        manager.name === 'Aqua Telecoms' || 
+                        manager.name === 'Nkanyezi') {
+                        return;
+                    }
+                    
+                    // Calculate adjusted plan: Confirmed + (Forecast × 50%)
+                    const adjustedPlan = manager.confirmed + (manager.forecast * 0.5);
+                    
+                    // Calculate adjusted capacity: Capacity × 75%
+                    const adjustedCapacity = manager.capacity * 0.75;
+                    
+                    // Get daily actual
+                    const actualKey = `${project.name}_${manager.name}`;
+                    const dailyActual = dailyActuals[actualKey] || 0;
+
+                    html += `
+                        <tr>
+                            <td><strong>${manager.name}</strong></td>
+                            <td>${formatCurrency(manager.confirmed)}</td>
+                            <td>${formatCurrency(manager.forecast)}</td>
+                            <td>${formatCurrency(adjustedPlan)}</td>
+                            <td>${formatCurrency(manager.capacity)}</td>
+                            <td class="${getRiskClass(manager.confCapPct)}">${manager.confCapPct}</td>
+                            <td>${formatCurrency(adjustedCapacity)}</td>
+                            <td class="${getRiskClass(manager.confAdjPct)}">${manager.confAdjPct}</td>
+                            <td>
+                                <div class="actual-cell">
+                                    <input type="number" 
+                                           class="actual-input" 
+                                           id="actual_${project.name}_${manager.name}" 
+                                           value="${dailyActual}" 
+                                           step="0.01"
+                                           onchange="updateDailyActual('${project.name}', '${manager.name}', this.value)">
+                                    <button class="save-btn" onclick="saveSingleActual('${project.name}', '${manager.name}')">
+                                        <i class="fas fa-save"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('projectsContainer').innerHTML = html;
+        }
+
+        // Update daily actual
+        function updateDailyActual(project, manager, value) {
+            const actualKey = `${project}_${manager}`;
+            
+            if (value === '') {
+                delete dailyActuals[actualKey];
+            } else {
+                dailyActuals[actualKey] = parseFloat(value) || 0;
+            }
+        }
+
+        // Save single actual
+        function saveSingleActual(project, manager) {
+            const input = document.getElementById(`actual_${project}_${manager}`);
+            if (input) {
+                updateDailyActual(project, manager, input.value);
+                saveActuals();
+                showMessage('Daily actual saved!', 'success');
+            }
+        }
+
+        // Add new entry
+        function addNewEntry() {
+            const costCenter = document.getElementById('costCenter').value;
+            const department = document.getElementById('department').value;
+            const managerName = document.getElementById('managerName').value;
+            const confirmed = parseFloat(document.getElementById('confirmed').value) || 0;
+            const forecast = parseFloat(document.getElementById('forecast').value) || 0;
+            const capacity = parseFloat(document.getElementById('capacity').value) || 0;
+
+            if (!costCenter || !department || !managerName) {
+                showMessage('Please fill in all required fields', 'warning');
+                return;
+            }
+
+            // Find the project
+            const projectIndex = masterData.projects.findIndex(p => p.name === costCenter);
+            
+            if (projectIndex >= 0) {
+                // Check if manager already exists
+                const existingManager = masterData.projects[projectIndex].managers.find(m => m.name === managerName);
+                
+                if (existingManager) {
+                    // Update existing manager
+                    existingManager.confirmed = confirmed;
+                    existingManager.forecast = forecast;
+                    existingManager.capacity = capacity;
+                    existingManager.confCapPct = calculatePercentage(confirmed, capacity);
+                    existingManager.confAdjPct = calculateAdjustedPercentage(confirmed, forecast, capacity);
+                    showMessage('Entry updated successfully!', 'success');
+                } else {
+                    // Add new manager with calculated percentages
+                    masterData.projects[projectIndex].managers.push({
+                        name: managerName,
+                        confirmed: confirmed,
+                        forecast: forecast,
+                        capacity: capacity,
+                        confCapPct: calculatePercentage(confirmed, capacity),
+                        confAdjPct: calculateAdjustedPercentage(confirmed, forecast, capacity)
+                    });
+                    showMessage('New entry added successfully!', 'success');
+                }
+                
+                // Re-render dashboard
+                renderDashboard();
+                updateStats();
+                
+                // Save to localStorage
+                saveActuals();
+                
+                // Clear form
+                document.getElementById('entryForm').reset();
+            }
+        }
+
+        // Filter data based on search and filters
+        function filterData() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const projectFilter = document.getElementById('projectFilter').value;
+            const riskFilter = document.getElementById('riskFilter').value;
+
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const manager = row.cells[0].textContent.toLowerCase();
+                const project = row.closest('.project-section').querySelector('.project-title').textContent;
+                const riskCell = row.cells[7]; // Confirmed/Adjusted % cell
+                const riskValue = parseInt(riskCell.textContent) || 0;
+                
+                let show = true;
+                
+                if (searchTerm && !manager.includes(searchTerm)) {
+                    show = false;
+                }
+                
+                if (projectFilter && !project.includes(projectFilter)) {
+                    show = false;
+                }
+                
+                if (riskFilter) {
+                    if (riskFilter === 'high' && riskValue <= 100) show = false;
+                    if (riskFilter === 'medium' && (riskValue <= 70 || riskValue > 100)) show = false;
+                    if (riskFilter === 'low' && riskValue > 70) show = false;
+                }
+                
+                row.style.display = show ? '' : 'none';
+            });
+        }
+
+        // Refresh data
+        function refreshData() {
+            showLoading();
+            
+            setTimeout(() => {
+                renderDashboard();
+                updateStats();
+                hideLoading();
+                showMessage('Data refreshed successfully!', 'success');
+            }, 500);
+        }
+
+        // Export to CSV
+        function exportToCSV() {
+            let csv = 'Cost Center,Project Manager,Confirmed,Forecast,Adjusted Plan,Capacity,Confirmed/Capacity %,Adjusted Capacity,Confirmed/Adjusted %,Daily Actual\n';
+            
+            masterData.projects.forEach(project => {
+                project.managers.forEach(manager => {
+                    // Skip summary rows
+                    if (manager.name === project.name || 
+                        manager.name === 'On Point' || 
+                        manager.name === 'Aqua Telecoms' || 
+                        manager.name === 'Nkanyezi') {
+                        return;
+                    }
+                    
+                    const adjustedPlan = manager.confirmed + (manager.forecast * 0.5);
+                    const adjustedCapacity = manager.capacity * 0.75;
+                    
+                    const actualKey = `${project.name}_${manager.name}`;
+                    const dailyActual = dailyActuals[actualKey] || 0;
+                    
+                    csv += `"${project.name}","${manager.name}",${manager.confirmed},${manager.forecast},${adjustedPlan},${manager.capacity},"${manager.confCapPct}",${adjustedCapacity},"${manager.confAdjPct}",${dailyActual}\n`;
+                });
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `project_dashboard_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            
+            showMessage('Data exported successfully!', 'success');
+        }
+
+        // Show loading overlay
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+        }
+
+        // Hide loading overlay
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+
+        // Show message
+        function showMessage(message, type) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${type}`;
+            msgDiv.innerHTML = message;
+            document.body.appendChild(msgDiv);
+            
+            setTimeout(() => {
+                msgDiv.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
