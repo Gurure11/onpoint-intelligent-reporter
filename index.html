@@ -278,6 +278,19 @@
             transition: 0.6;
             cursor: pointer;
         }
+        
+        /* Progress bar larger style */
+        .progress-bar-large {
+            height: 30px;
+            border-radius: 15px;
+        }
+        .progress-bar-large .progress-fill {
+            line-height: 30px;
+            text-align: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -327,6 +340,104 @@
                 <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-book"></i></div><div class="kpi-label">Total Order Book</div><div class="kpi-value" id="totalOrderBook">R 0</div></div>
                 <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-calendar-check text-primary"></i></div><div class="kpi-label">Group BTYE</div><div class="kpi-value" id="groupBTYE">R 0</div></div>
                 <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-calendar-alt text-info"></i></div><div class="kpi-label">MTD Actual</div><div class="kpi-value" id="mtdActual">R 0</div></div>
+            </div>
+            
+            <!-- Progress Bars Section - Daily to Yearly -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card-modern">
+                        <div class="card-header-modern">
+                            <span><i class="fas fa-chart-line"></i> Progress Towards Budget</span>
+                            <small class="text-muted">Daily → Yearly Performance</small>
+                        </div>
+                        <div class="card-body-modern">
+                            <div class="row g-4">
+                                <div class="col-md-2 col-6">
+                                    <div class="text-center">
+                                        <div class="small text-muted">Daily Progress</div>
+                                        <div class="progress-bar-custom mt-2 mb-2" style="height: 30px;">
+                                            <div id="dailyProgressFill" class="progress-fill green" style="width: 0%; height: 100%; line-height: 30px; text-align: center; color: white;"></div>
+                                        </div>
+                                        <div><strong id="dailyProgressPercent">0%</strong></div>
+                                        <small id="dailyProgressDetails">R0 / R0</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 col-6">
+                                    <div class="text-center">
+                                        <div class="small text-muted">Weekly Progress</div>
+                                        <div class="progress-bar-custom mt-2 mb-2" style="height: 30px;">
+                                            <div id="weeklyProgressFill" class="progress-fill green" style="width: 0%; height: 100%;"></div>
+                                        </div>
+                                        <div><strong id="weeklyProgressPercent">0%</strong></div>
+                                        <small id="weeklyProgressDetails">R0 / R0</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 col-6">
+                                    <div class="text-center">
+                                        <div class="small text-muted">Monthly Progress</div>
+                                        <div class="progress-bar-custom mt-2 mb-2" style="height: 30px;">
+                                            <div id="monthlyProgressFill" class="progress-fill green" style="width: 0%; height: 100%;"></div>
+                                        </div>
+                                        <div><strong id="monthlyProgressPercent">0%</strong></div>
+                                        <small id="monthlyProgressDetails">R0 / R0</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 col-6">
+                                    <div class="text-center">
+                                        <div class="small text-muted">Quarterly Progress</div>
+                                        <div class="progress-bar-custom mt-2 mb-2" style="height: 30px;">
+                                            <div id="quarterlyProgressFill" class="progress-fill green" style="width: 0%; height: 100%;"></div>
+                                        </div>
+                                        <div><strong id="quarterlyProgressPercent">0%</strong></div>
+                                        <small id="quarterlyProgressDetails">R0 / R0</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 col-6">
+                                    <div class="text-center">
+                                        <div class="small text-muted">Yearly Progress</div>
+                                        <div class="progress-bar-custom mt-2 mb-2" style="height: 30px;">
+                                            <div id="yearlyProgressFill" class="progress-fill green" style="width: 0%; height: 100%;"></div>
+                                        </div>
+                                        <div><strong id="yearlyProgressPercent">0%</strong></div>
+                                        <small id="yearlyProgressDetails">R0 / R0</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Division Progress Bars Section -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card-modern">
+                        <div class="card-header-modern">
+                            <span><i class="fas fa-building"></i> Division Progress</span>
+                            <small>% towards budget by division</small>
+                        </div>
+                        <div class="card-body-modern" id="divisionProgressContainer">
+                            <!-- Division progress bars will be populated here -->
+                            <div class="text-center text-muted">Loading division data...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Manager Progress Bars Section -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card-modern">
+                        <div class="card-header-modern">
+                            <span><i class="fas fa-user-tie"></i> Manager Progress</span>
+                            <small>% towards budget by manager</small>
+                        </div>
+                        <div class="card-body-modern" id="managerProgressContainer">
+                            <!-- Manager progress bars will be populated here -->
+                            <div class="text-center text-muted">Loading manager data...</div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -380,7 +491,7 @@
                                             <th>Variance %</th>
                                             <th>Progress</th>
                                             <th>Status</th>
-                                        </tr>
+                                         </tr>
                                     </thead>
                                     <tbody id="managerComparisonBody">
                                         <tr><td colspan="8" class="text-center">Loading...</td></tr>
@@ -503,22 +614,23 @@
         </div>
         
         <!-- Order Book Tab -->
-        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book - All Projects from Projects Sheet</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody></table></div></div></div></div>
+        <div id="orderbook" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-book"></i> Order Book - All Projects from Projects Sheet</div><div class="card-body-modern"><div class="table-container"><table class="table-modern w-100" id="orderBookTable"><thead id="orderBookHeader"></thead><tbody id="orderBookBody"></tbody>可能会</div></div></div></div>
         
         <!-- Performance Tab -->
-        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody></table></div></div></div></div>
+        <div id="performance" class="tab-pane"><div class="card-modern"><div class="card-header-modern"><i class="fas fa-chart-simple"></i> Performance Analysis</div><div class="card-body-modern"><div id="perfChart" class="chart-container"></div><div class="table-container mt-4"><table class="table-modern w-100" id="perfTable"><thead><th>Manager</th><th>Actual</th><th>Target</th><th>Achievement</th><th>Quality</th><th>Safety</th><th>Status</th></thead><tbody></tbody>可能会</div></div></div></div>
     </div>
     <div class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i></div>
 
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
-        // Google Sheets Configuration
+        // Google Sheets Configuration - Updated with separate Invoices Sheet ID
         const CONFIG = { 
             SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw96lvsCkzFnqcDaX0xF9SumGae6CgTdKkdEh83UrVlLU2RT_S7MPB0LJnpduSWYPdw/exec',
             PROJECTS_SHEET_ID: '1YNQ4pwOdddNGr-_Gef2bbxVgoW4lKsXy-roPvfFmMEM',
             PROJECTS_SHEET_NAME: 'Projects',
             REVENUE_SHEET_ID: '1XW6-Kz9_8P0MKRHZlsYfz4BCGilatiQ1FoA_MGAKeqg',
             REVENUE_SHEET_NAME: 'Revenue',
+            INVOICES_SHEET_ID: '1h1hoJkc6J1VYfj52R7v2fTNLjWnf865b8I7VTR4Cqeg',
             INVOICES_SHEET_NAME: 'invoices'
         };
         
@@ -570,6 +682,183 @@
                 throw new Error("Server did not return valid JSON");
             }
         }
+        
+        // ==================== NEW PROGRESS METRICS FUNCTIONS ====================
+        
+        function calculateProgressMetrics() {
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const monthIdx = (currentMonth + 10) % 12;
+            const workingDays = 22;
+            const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+            const dayOfMonth = today.getDate();
+            
+            // Daily Progress
+            const dailyActual = dailyEntries.filter(e => e.date === today.toISOString().split('T')[0]).reduce((s, e) => s + e.amount, 0);
+            const dailyTarget = projects.reduce((s, p) => s + ((p.months?.[monthIdx] || p.TotalIncome/12) / workingDays), 0);
+            const dailyProgressPercent = dailyTarget > 0 ? (dailyActual / dailyTarget) * 100 : 0;
+            
+            // Weekly Progress
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            const weeklyActual = dailyEntries.filter(e => new Date(e.date) >= weekStart).reduce((s, e) => s + e.amount, 0);
+            const weeklyTarget = projects.reduce((s, p) => s + ((p.months?.[monthIdx] || p.TotalIncome/12) / workingDays) * 7, 0);
+            const weeklyProgressPercent = weeklyTarget > 0 ? (weeklyActual / weeklyTarget) * 100 : 0;
+            
+            // Monthly Progress
+            const monthlyActual = dailyEntries.filter(e => new Date(e.date).getMonth() === currentMonth).reduce((s, e) => s + e.amount, 0);
+            const monthlyTarget = projects.reduce((s, p) => s + (p.months?.[monthIdx] || p.TotalIncome/12), 0);
+            const monthlyProgressPercent = monthlyTarget > 0 ? (monthlyActual / monthlyTarget) * 100 : 0;
+            
+            // Quarterly Progress
+            const currentQuarter = Math.floor(currentMonth / 3);
+            const quarterlyActual = dailyEntries.filter(e => Math.floor(new Date(e.date).getMonth() / 3) === currentQuarter).reduce((s, e) => s + e.amount, 0);
+            const quarterlyTarget = projects.reduce((s, p) => s + (p.TotalIncome / 4), 0);
+            const quarterlyProgressPercent = quarterlyTarget > 0 ? (quarterlyActual / quarterlyTarget) * 100 : 0;
+            
+            // Yearly Progress
+            const yearlyActual = dailyEntries.reduce((s, e) => s + e.amount, 0);
+            const yearlyTarget = projects.reduce((s, p) => s + p.TotalIncome, 0);
+            const yearlyProgressPercent = yearlyTarget > 0 ? (yearlyActual / yearlyTarget) * 100 : 0;
+            
+            return {
+                daily: { actual: dailyActual, target: dailyTarget, percent: dailyProgressPercent },
+                weekly: { actual: weeklyActual, target: weeklyTarget, percent: weeklyProgressPercent },
+                monthly: { actual: monthlyActual, target: monthlyTarget, percent: monthlyProgressPercent },
+                quarterly: { actual: quarterlyActual, target: quarterlyTarget, percent: quarterlyProgressPercent },
+                yearly: { actual: yearlyActual, target: yearlyTarget, percent: yearlyProgressPercent }
+            };
+        }
+        
+        function updateProgressBars() {
+            const progress = calculateProgressMetrics();
+            
+            // Update daily progress
+            const dailyPercent = Math.min(100, progress.daily.percent);
+            document.getElementById('dailyProgressFill').style.width = dailyPercent + '%';
+            document.getElementById('dailyProgressPercent').innerHTML = progress.daily.percent.toFixed(1) + '%';
+            document.getElementById('dailyProgressDetails').innerHTML = `${formatCurrency(progress.daily.actual)} / ${formatCurrency(progress.daily.target)}`;
+            
+            // Update weekly progress
+            const weeklyPercent = Math.min(100, progress.weekly.percent);
+            document.getElementById('weeklyProgressFill').style.width = weeklyPercent + '%';
+            document.getElementById('weeklyProgressPercent').innerHTML = progress.weekly.percent.toFixed(1) + '%';
+            document.getElementById('weeklyProgressDetails').innerHTML = `${formatCurrency(progress.weekly.actual)} / ${formatCurrency(progress.weekly.target)}`;
+            
+            // Update monthly progress
+            const monthlyPercent = Math.min(100, progress.monthly.percent);
+            document.getElementById('monthlyProgressFill').style.width = monthlyPercent + '%';
+            document.getElementById('monthlyProgressPercent').innerHTML = progress.monthly.percent.toFixed(1) + '%';
+            document.getElementById('monthlyProgressDetails').innerHTML = `${formatCurrency(progress.monthly.actual)} / ${formatCurrency(progress.monthly.target)}`;
+            
+            // Update quarterly progress
+            const quarterlyPercent = Math.min(100, progress.quarterly.percent);
+            document.getElementById('quarterlyProgressFill').style.width = quarterlyPercent + '%';
+            document.getElementById('quarterlyProgressPercent').innerHTML = progress.quarterly.percent.toFixed(1) + '%';
+            document.getElementById('quarterlyProgressDetails').innerHTML = `${formatCurrency(progress.quarterly.actual)} / ${formatCurrency(progress.quarterly.target)}`;
+            
+            // Update yearly progress
+            const yearlyPercent = Math.min(100, progress.yearly.percent);
+            document.getElementById('yearlyProgressFill').style.width = yearlyPercent + '%';
+            document.getElementById('yearlyProgressPercent').innerHTML = progress.yearly.percent.toFixed(1) + '%';
+            document.getElementById('yearlyProgressDetails').innerHTML = `${formatCurrency(progress.yearly.actual)} / ${formatCurrency(progress.yearly.target)}`;
+        }
+        
+        function updateDivisionProgress() {
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const monthIdx = (currentMonth + 10) % 12;
+            const monthlyTarget = {};
+            const monthlyActual = {};
+            
+            // Calculate targets by division
+            projects.forEach(p => {
+                const div = p.Division || p.costCentre || 'Onpoint Group';
+                if (!monthlyTarget[div]) monthlyTarget[div] = 0;
+                monthlyTarget[div] += p.months?.[monthIdx] || p.TotalIncome / 12;
+            });
+            
+            // Calculate actuals by division
+            dailyEntries.forEach(e => {
+                if (new Date(e.date).getMonth() === currentMonth) {
+                    const proj = projects.find(p => p.ProjectName === e.projectName && p.Manager === e.manager);
+                    const div = proj?.Division || proj?.costCentre || 'Onpoint Group';
+                    if (!monthlyActual[div]) monthlyActual[div] = 0;
+                    monthlyActual[div] += e.amount;
+                }
+            });
+            
+            let html = '<div class="row">';
+            for (const [div, target] of Object.entries(monthlyTarget)) {
+                const actual = monthlyActual[div] || 0;
+                const percent = target > 0 ? (actual / target) * 100 : 0;
+                const colorClass = percent >= 80 ? 'green' : (percent >= 50 ? 'orange' : 'red');
+                
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <strong>${div}</strong>
+                            <span>${formatCurrency(actual)} / ${formatCurrency(target)}</span>
+                        </div>
+                        <div class="progress-bar-custom">
+                            <div class="progress-fill ${colorClass}" style="width: ${Math.min(100, percent)}%"></div>
+                        </div>
+                        <div class="text-end small mt-1">${percent.toFixed(1)}%</div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            document.getElementById('divisionProgressContainer').innerHTML = html || '<p class="text-center text-muted">No division data available</p>';
+        }
+        
+        function updateManagerProgress() {
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const monthIdx = (currentMonth + 10) % 12;
+            const managerTarget = {};
+            const managerActual = {};
+            
+            // Calculate targets by manager
+            projects.forEach(p => {
+                const mgr = p.Manager;
+                if (mgr && mgr !== 'Unassigned') {
+                    if (!managerTarget[mgr]) managerTarget[mgr] = 0;
+                    managerTarget[mgr] += p.months?.[monthIdx] || p.TotalIncome / 12;
+                }
+            });
+            
+            // Calculate actuals by manager
+            dailyEntries.forEach(e => {
+                if (e.manager && new Date(e.date).getMonth() === currentMonth) {
+                    if (!managerActual[e.manager]) managerActual[e.manager] = 0;
+                    managerActual[e.manager] += e.amount;
+                }
+            });
+            
+            let html = '<div class="row">';
+            for (const [mgr, target] of Object.entries(managerTarget)) {
+                const actual = managerActual[mgr] || 0;
+                const percent = target > 0 ? (actual / target) * 100 : 0;
+                const colorClass = percent >= 80 ? 'green' : (percent >= 50 ? 'orange' : 'red');
+                
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <strong>${mgr}</strong>
+                            <span>${formatCurrency(actual)} / ${formatCurrency(target)}</span>
+                        </div>
+                        <div class="progress-bar-custom">
+                            <div class="progress-fill ${colorClass}" style="width: ${Math.min(100, percent)}%"></div>
+                        </div>
+                        <div class="text-end small mt-1">${percent.toFixed(1)}%</div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            document.getElementById('managerProgressContainer').innerHTML = html || '<p class="text-center text-muted">No manager data available</p>';
+        }
+        
+        // ==================== EXISTING FUNCTIONS (UPDATED) ====================
         
         function getManagerPerformanceForPeriod(period) {
             const today = new Date().toISOString().split('T')[0];
@@ -754,11 +1043,14 @@
             const confirmedTotal = projects.filter(p => p.Status === 'Confirmed').reduce((s, p) => s + p.TotalIncome, 0);
             const forecastTotal = projects.filter(p => p.Status === 'Forecast').reduce((s, p) => s + p.TotalIncome, 0);
             const totalOrderBook = confirmedTotal + forecastTotal;
-            const groupBTYE = forecastTotal + (confirmedTotal * 1.5);
+            
+            // Updated Group BTYE: (Forecast + Confirmed * 1.5) - MTD Actual
             const mtdActual = dailyEntries.filter(e => {
                 if(!e.date) return false;
                 return new Date(e.date).getMonth() === new Date().getMonth();
             }).reduce((s, e) => s + e.amount, 0);
+            
+            const groupBTYE = (forecastTotal + (confirmedTotal * 1.5)) - mtdActual;
             
             document.getElementById('totalConfirmed').innerHTML = formatCurrency(confirmedTotal);
             document.getElementById('totalForecast').innerHTML = formatCurrency(forecastTotal);
@@ -1155,6 +1447,9 @@
             updateTodayInvoicesTable(); 
             updateManagerComparisonTable();
             updateProjectTimelineTable();
+            updateProgressBars();
+            updateDivisionProgress();
+            updateManagerProgress();
             document.getElementById('revDate').value = new Date().toISOString().split('T')[0]; 
             document.getElementById('invDate').value = new Date().toISOString().split('T')[0]; 
             if(document.getElementById('revManager')) document.getElementById('revManager').addEventListener('change', updateDailyBudget);
