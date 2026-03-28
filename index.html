@@ -266,7 +266,7 @@
 
   <script>
     const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxXqomp1iTMG6Pi2pmGdNb2FmHtcO2--U0D697YroV4FTRlRNP6CWHo7X65lIn5ofDa/exec';
-    const STORAGE_KEYS = { scriptUrl:'onpoint.scriptUrl', fallbackMode:'onpoint.fallbackMode' };
+    const STORAGE_KEYS = { scriptUrl:'onpoint.scriptUrl', fallbackMode:'onpoint.fallbackMode', revenueBudgetMemory:'onpoint.revenueBudgetMemory', formDraft:'onpoint.formDraft' };
     const PERIODS = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
     const DIVISION_COLORS = ['#0f172a','#334155','#475569','#64748b','#94a3b8','#1e293b','#475569'];
     const COST_CENTERS = ['Onpoint Ontime','Aqua Telecoms','Nkanyezi','Distinct Hire'];
@@ -313,6 +313,112 @@
     };
     const safeDate = value => { const d = new Date(value); return isNaN(d.getTime()) ? null : d; };
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    function getBudgetMemory(){
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.revenueBudgetMemory) || '{}') || {}; } catch { return {}; }
+    }
+    function setBudgetMemory(memory){
+      localStorage.setItem(STORAGE_KEYS.revenueBudgetMemory, JSON.stringify(memory || {}));
+    }
+    function revenueBudgetKey(projectName, manager='', costCenter=''){
+      return [String(projectName || '').trim().toLowerCase(), String(manager || '').trim().toLowerCase(), normalizeCostCenterName(costCenter)].join('|');
+    }
+    function rememberBudgetValue(projectName, manager, costCenter, budget){
+      const numericBudget = num(budget);
+      if (!projectName || numericBudget <= 0) return;
+      const memory = getBudgetMemory();
+      const key = revenueBudgetKey(projectName, manager, costCenter);
+      memory[key] = numericBudget;
+      setBudgetMemory(memory);
+    }
+    function latestBudgetForSelection(projectName, manager='', costCenter=''){
+      if (!projectName) return 0;
+      const matchingRows = revenueData
+        .filter(row => String(row.projectName || '').trim() === String(projectName || '').trim())
+        .filter(row => !manager || String(row.manager || '').trim() === String(manager || '').trim())
+        .filter(row => !costCenter || normalizeCostCenterName(row.costCenter) === normalizeCostCenterName(costCenter))
+        .filter(row => num(row.budget) > 0)
+        .sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')));
+      if (matchingRows.length) return num(matchingRows[0].budget);
+      const memory = getBudgetMemory();
+      const exactKey = revenueBudgetKey(projectName, manager, costCenter);
+      if (memory[exactKey] != null) return num(memory[exactKey]);
+      const managerAgnosticKey = revenueBudgetKey(projectName, '', costCenter);
+      if (memory[managerAgnosticKey] != null) return num(memory[managerAgnosticKey]);
+      const projectOnlyKey = revenueBudgetKey(projectName, '', '');
+      if (memory[projectOnlyKey] != null) return num(memory[projectOnlyKey]);
+      return 0;
+    }
+    function captureDashboardInputs(){
+      const ids = ['revDate','revCostCenter','revManager','revProjectName','revAmount','revBudget','revQuality','revSafety','revAchievement','invDate','invManager','invProjectName','invAmount','paymentReceived','paymentDate','newProjCreatedAt','newProjDivision','newProjManager','newProjName','newProjLocation','newProjStatus','newProjTotalIncome','newProjMargin','newProjStartDate','newProjEndDate','newProjRemarks','quickNewProjectName','quickNewProjectIncome','quickNewProjectMargin','quickNewProjectStartDate','quickNewProjectEndDate','query'];
+      const values = {};
+      ids.forEach(id => {
+        const el = byId(id);
+        if (el) values[id] = el.value;
+      });
+      return {
+        values,
+        quickProjectOpen: byId('quickProjectPanel') ? !byId('quickProjectPanel').classList.contains('hidden') : false,
+        activeTab: document.querySelector('.tab.active')?.dataset?.tab || 'executive',
+        focusedId: document.activeElement?.id || ''
+      };
+    }
+    function restoreDashboardInputs(snapshot){
+      if (!snapshot) return;
+      Object.entries(snapshot.values || {}).forEach(([id, value]) => {
+        const el = byId(id);
+        if (!el) return;
+        if (el.tagName === 'SELECT') {
+          const hasOption = Array.from(el.options).some(option => option.value === value);
+          if (hasOption) el.value = value;
+        } else {
+          el.value = value ?? '';
+        }
+      });
+      if (byId('quickProjectPanel')) {
+        byId('quickProjectPanel').classList.toggle('hidden', !snapshot.quickProjectOpen);
+      }
+      if (snapshot.activeTab) {
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === snapshot.activeTab));
+        document.querySelectorAll('.tab-content').forEach(panel => panel.classList.toggle('active', panel.id === snapshot.activeTab));
+      }
+      updateAchievement();
+      const focused = snapshot.focusedId ? byId(snapshot.focusedId) : null;
+      if (focused && typeof focused.focus === 'function') {
+        try { focused.focus({ preventScroll:true }); } catch { focused.focus(); }
+      }
+    }
+    function applyRememberedBudget(force=false){
+      const projectName = byId('revProjectName')?.value;
+      const manager = byId('revManager')?.value;
+      const costCenter = byId('revCostCenter')?.value;
+      const budgetEl = byId('revBudget');
+      if (!budgetEl || !projectName) return;
+      const currentBudget = num(budgetEl.value);
+      if (!force && currentBudget > 0) return;
+      const remembered = latestBudgetForSelection(projectName, manager, costCenter);
+      if (remembered > 0) {
+        budgetEl.value = remembered;
+        updateAchievement();
+      }
+    }
+    function bindRevenueDefaults(){
+      ['revProjectName','revManager','revCostCenter'].forEach(id => {
+        const el = byId(id);
+        if (!el) return;
+        el.onchange = () => {
+          if (id !== 'revProjectName' && byId('revBudget') && !num(byId('revBudget').value)) applyRememberedBudget(true);
+          if (id === 'revProjectName') applyRememberedBudget(true);
+          updateAchievement();
+        };
+      });
+      const budgetEl = byId('revBudget');
+      if (budgetEl) {
+        budgetEl.onblur = () => {
+          rememberBudgetValue(byId('revProjectName').value, byId('revManager').value, byId('revCostCenter').value, budgetEl.value);
+          updateAchievement();
+        };
+      }
+    }
     function normalizeTextKey(value){
       return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
     }
@@ -677,6 +783,7 @@
     async function loadLiveData(showOverlay = true){
       if (isLoadingData) return;
       const scriptUrl = byId('scriptUrlInput').value.trim() || DEFAULT_SCRIPT_URL;
+      const snapshot = captureDashboardInputs();
       isLoadingData = true;
       if (showOverlay) showLoading('Loading live data from Google Sheets...');
       setConnection('Connecting', 'b-amber');
@@ -695,7 +802,7 @@
         if (!invoicesResult.ok) warnings.push('Invoices failed.');
         setConnection(warnings.length ? 'Partially Connected' : 'Live Connected', warnings.length ? 'b-amber' : 'b-green');
         setStatusSummary(`Loaded live data.<br><br>Projects: ${projectsData.length}<br>Revenue rows: ${revenueData.length}<br>Invoice rows: ${invoiceData.length}<br>Last sync: ${new Date().toLocaleTimeString()}`);
-        populateInputs();
+        populateInputs(snapshot);
         render();
       } finally {
         isLoadingData = false;
@@ -1031,7 +1138,8 @@
 
     function bindDynamicEvents(){ document.querySelectorAll('[data-kpi]').forEach(el => { el.onclick = () => { const key = el.getAttribute('data-kpi'); state.activeKpi = state.activeKpi === key ? 'all' : key; render(); }; }); }
 
-    function populateInputs(){
+    function populateInputs(preserved = null){
+      const current = preserved || captureDashboardInputs();
       byId('period').innerHTML = PERIODS.map(p => `<option value="${p}">${p}</option>`).join('');
       byId('period').value = state.period;
       const divisions = ['All', ...new Set([...COST_CENTERS, ...projectsData.map(p => p.division).filter(Boolean)])];
@@ -1042,23 +1150,28 @@
       byId('managerFilter').value = managers.includes(state.manager) ? state.manager : 'All';
 
       const liveProjects = [...new Set([...PROJECT_OPTIONS, ...projectsData.map(p => p.project).filter(Boolean)])].sort((a,b)=>a.localeCompare(b));
-      byId('revCostCenter').innerHTML = COST_CENTERS.map(v => `<option value="${v}">${v}</option>`).join('');
-      byId('newProjDivision').innerHTML = COST_CENTERS.map(v => `<option value="${v}">${v}</option>`).join('');
+      const liveCostCenters = [...new Set([...COST_CENTERS, ...projectsData.map(p => p.division).filter(Boolean), ...revenueData.map(r => r.costCenter).filter(Boolean)])].map(normalizeCostCenterName).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+      byId('revCostCenter').innerHTML = liveCostCenters.map(v => `<option value="${v}">${v}</option>`).join('');
+      byId('newProjDivision').innerHTML = liveCostCenters.map(v => `<option value="${v}">${v}</option>`).join('');
       byId('revProjectName').innerHTML = liveProjects.map(v => `<option value="${v}">${v}</option>`).join('');
       byId('invProjectName').innerHTML = liveProjects.map(v => `<option value="${v}">${v}</option>`).join('');
 
-      const liveManagers = [...new Set([...PROJECT_MANAGERS, ...projectsData.map(p => p.pm).filter(Boolean)])].sort((a,b)=>a.localeCompare(b));
+      const liveManagers = [...new Set([...PROJECT_MANAGERS, ...projectsData.map(p => p.pm).filter(Boolean), ...revenueData.map(r => r.manager).filter(Boolean)])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
       byId('revManager').innerHTML = liveManagers.map(v => `<option value="${v}">${v}</option>`).join('');
       byId('invManager').innerHTML = liveManagers.map(v => `<option value="${v}">${v}</option>`).join('');
       byId('newProjManager').innerHTML = liveManagers.filter(v => v !== 'All').map(v => `<option value="${v}">${v}</option>`).join('');
 
-      byId('revDate').value = todayISO();
-      byId('invDate').value = todayISO();
-      byId('newProjCreatedAt').value = todayISO();
-      resetQuickProjectInputs();
+      if (!current?.values?.revDate) byId('revDate').value = todayISO();
+      if (!current?.values?.invDate) byId('invDate').value = todayISO();
+      if (!current?.values?.newProjCreatedAt) byId('newProjCreatedAt').value = todayISO();
       byId('scriptUrlInput').value = localStorage.getItem(STORAGE_KEYS.scriptUrl) || DEFAULT_SCRIPT_URL;
       byId('fallbackMode').value = localStorage.getItem(STORAGE_KEYS.fallbackMode) || 'auto';
       populateAnalysisFilters();
+      restoreDashboardInputs(current);
+      bindRevenueDefaults();
+      applyRememberedBudget(false);
+      if (!byId('quickNewProjectStartDate').value) byId('quickNewProjectStartDate').value = byId('revDate').value || todayISO();
+      if (!byId('quickNewProjectEndDate').value) byId('quickNewProjectEndDate').value = byId('revDate').value || todayISO();
     }
 
     function updateAchievement(){ byId('revAchievement').value = pct(num(byId('revAmount').value), num(byId('revBudget').value)) + '%'; }
@@ -1137,7 +1250,7 @@ ${error.message}`);
       const scriptUrl = byId('scriptUrlInput').value.trim() || DEFAULT_SCRIPT_URL;
       return safeFetchJson(scriptUrl, getFetchOptions('POST', payload));
     }
-    async function saveRevenue(){ const payload = { action:'addRevenue', data:{ date:byId('revDate').value, manager:byId('revManager').value, costCenter:normalizeCostCenterName(byId('revCostCenter').value), projectName:byId('revProjectName').value, amount:num(byId('revAmount').value), budget:num(byId('revBudget').value), quality:num(byId('revQuality').value), safety:num(byId('revSafety').value) } }; if (!payload.data.date || !payload.data.projectName || payload.data.amount <= 0) return alert('Please complete the daily revenue fields.'); showLoading('Saving daily revenue...'); try { await postJsonToScript(payload); byId('revAmount').value = ''; byId('revBudget').value = ''; byId('revAchievement').value = ''; await loadLiveData(false); } finally { hideLoading(); } }
+    async function saveRevenue(){ const payload = { action:'addRevenue', data:{ date:byId('revDate').value, manager:byId('revManager').value, costCenter:normalizeCostCenterName(byId('revCostCenter').value), projectName:byId('revProjectName').value, amount:num(byId('revAmount').value), budget:num(byId('revBudget').value), quality:num(byId('revQuality').value), safety:num(byId('revSafety').value) } }; if (!payload.data.date || !payload.data.projectName || payload.data.amount <= 0) return alert('Please complete the daily revenue fields.'); showLoading('Saving daily revenue...'); try { rememberBudgetValue(payload.data.projectName, payload.data.manager, payload.data.costCenter, payload.data.budget); await postJsonToScript(payload); byId('revAmount').value = ''; byId('revAchievement').value = ''; await loadLiveData(false); applyRememberedBudget(true); } finally { hideLoading(); } }
     async function saveInvoice(){ const payload = { action:'addInvoice', data:{ date:byId('invDate').value, manager:byId('invManager').value, projectName:byId('invProjectName').value, amount:num(byId('invAmount').value), paymentReceived:byId('paymentReceived').value === 'true', paymentDate:byId('paymentDate').value } }; if (!payload.data.date || !payload.data.projectName || payload.data.amount <= 0) return alert('Please complete the invoice fields.'); showLoading('Saving invoice...'); try { await postJsonToScript(payload); await loadLiveData(false); } finally { hideLoading(); } }
 
     async function saveProject(){
@@ -1185,7 +1298,11 @@ ${error.message}`);
     function initTabs(){ document.querySelectorAll('.tab').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); byId(btn.dataset.tab).classList.add('active'); }; }); }
     function startAutoRefresh(){
       if (autoRefreshHandle) clearInterval(autoRefreshHandle);
-      autoRefreshHandle = setInterval(() => loadLiveData(false), 60000);
+      autoRefreshHandle = setInterval(() => {
+        const activeTag = document.activeElement?.tagName || '';
+        const isEditing = ['INPUT','SELECT','TEXTAREA'].includes(activeTag);
+        loadLiveData(!isEditing ? false : false);
+      }, 60000);
     }
 
     function init(){
@@ -1211,7 +1328,8 @@ ${error.message}`);
       byId('saveSettingsBtn').onclick = () => { writeSettings(); loadLiveData(); };
       byId('revAmount').oninput = updateAchievement;
       byId('revBudget').oninput = updateAchievement;
-      byId('revDate').onchange = syncQuickProjectDefaults;
+      byId('revDate').onchange = () => { syncQuickProjectDefaults(); updateAchievement(); };
+      bindRevenueDefaults();
       startAutoRefresh();
       loadLiveData();
     }
