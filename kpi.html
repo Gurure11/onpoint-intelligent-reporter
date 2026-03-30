@@ -583,6 +583,14 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>Entry Action *</label>
+                    <select id="entryAction" required>
+                        <option value="add">Add New Entry</option>
+                        <option value="replace">Replace Existing Entry</option>
+                        <option value="adjust">Adjust Existing Entry</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Confirmed (R)</label>
                     <input type="number" id="confirmed" step="0.01" value="0">
                 </div>
@@ -594,8 +602,12 @@
                     <label>Capacity (R)</label>
                     <input type="number" id="capacity" step="0.01" value="0">
                 </div>
+                <div class="form-group">
+                    <label>Capacity Adjustment (+/- R)</label>
+                    <input type="number" id="capacityAdjustment" step="0.01" value="0" placeholder="Use negative to reduce capacity">
+                </div>
                 <button class="btn-save-entry" onclick="addNewEntry()">
-                    <i class="fas fa-plus"></i> Add Entry
+                    <i class="fas fa-plus"></i> Save Entry
                 </button>
             </div>
         </div>
@@ -1079,58 +1091,95 @@
             }
         }
 
+        // Clamp value to zero minimum
+        function clampToZero(value) {
+            return Math.max(0, parseFloat(value) || 0);
+        }
+
+        // Clear the new project entry inputs
+        function clearEntryForm() {
+            document.getElementById('costCenter').value = '';
+            document.getElementById('department').value = '';
+            document.getElementById('managerName').value = '';
+            document.getElementById('entryAction').value = 'add';
+            document.getElementById('confirmed').value = 0;
+            document.getElementById('forecast').value = 0;
+            document.getElementById('capacity').value = 0;
+            document.getElementById('capacityAdjustment').value = 0;
+        }
+
         // Add new entry
         function addNewEntry() {
             const costCenter = document.getElementById('costCenter').value;
             const department = document.getElementById('department').value;
             const managerName = document.getElementById('managerName').value;
-            const confirmed = parseFloat(document.getElementById('confirmed').value) || 0;
-            const forecast = parseFloat(document.getElementById('forecast').value) || 0;
-            const capacity = parseFloat(document.getElementById('capacity').value) || 0;
+            const entryAction = document.getElementById('entryAction').value;
+            const confirmedInput = parseFloat(document.getElementById('confirmed').value) || 0;
+            const forecastInput = parseFloat(document.getElementById('forecast').value) || 0;
+            const capacityInput = parseFloat(document.getElementById('capacity').value) || 0;
+            const capacityAdjustment = parseFloat(document.getElementById('capacityAdjustment').value) || 0;
 
             if (!costCenter || !department || !managerName) {
                 showMessage('Please fill in all required fields', 'warning');
                 return;
             }
 
-            // Find the project
             const projectIndex = masterData.projects.findIndex(p => p.name === costCenter);
-            
-            if (projectIndex >= 0) {
-                // Check if manager already exists
-                const existingManager = masterData.projects[projectIndex].managers.find(m => m.name === managerName);
-                
-                if (existingManager) {
-                    // Update existing manager
-                    existingManager.confirmed = confirmed;
-                    existingManager.forecast = forecast;
-                    existingManager.capacity = capacity;
-                    existingManager.confCapPct = calculatePercentage(confirmed, capacity);
-                    existingManager.confAdjPct = calculateAdjustedPercentage(confirmed, forecast, capacity);
-                    showMessage('Entry updated successfully!', 'success');
-                } else {
-                    // Add new manager with calculated percentages
-                    masterData.projects[projectIndex].managers.push({
-                        name: managerName,
-                        confirmed: confirmed,
-                        forecast: forecast,
-                        capacity: capacity,
-                        confCapPct: calculatePercentage(confirmed, capacity),
-                        confAdjPct: calculateAdjustedPercentage(confirmed, forecast, capacity)
-                    });
-                    showMessage('New entry added successfully!', 'success');
-                }
-                
-                // Re-render dashboard
-                renderDashboard();
-                updateStats();
-                
-                // Save to localStorage
-                saveActuals();
-                
-                // Clear form
-                document.getElementById('entryForm').reset();
+            if (projectIndex < 0) {
+                showMessage('Selected cost center was not found', 'error');
+                return;
             }
+
+            const project = masterData.projects[projectIndex];
+            let existingManager = project.managers.find(m => m.name === managerName);
+
+            if (!existingManager && entryAction !== 'add') {
+                showMessage('Manager entry does not exist yet. Use Add New Entry first.', 'warning');
+                return;
+            }
+
+            if (existingManager && entryAction === 'add') {
+                showMessage('Manager already exists. Use Replace Existing Entry or Adjust Existing Entry.', 'warning');
+                return;
+            }
+
+            if (entryAction === 'add') {
+                const startingCapacity = clampToZero(capacityInput + capacityAdjustment);
+                project.managers.push({
+                    name: managerName,
+                    department: department,
+                    confirmed: clampToZero(confirmedInput),
+                    forecast: clampToZero(forecastInput),
+                    capacity: startingCapacity,
+                    confCapPct: calculatePercentage(clampToZero(confirmedInput), startingCapacity),
+                    confAdjPct: calculateAdjustedPercentage(clampToZero(confirmedInput), clampToZero(forecastInput), startingCapacity)
+                });
+                showMessage('New entry added successfully!', 'success');
+            } else if (entryAction === 'replace') {
+                const finalCapacity = clampToZero(capacityInput + capacityAdjustment);
+                existingManager.department = department;
+                existingManager.confirmed = clampToZero(confirmedInput);
+                existingManager.forecast = clampToZero(forecastInput);
+                existingManager.capacity = finalCapacity;
+                existingManager.confCapPct = calculatePercentage(existingManager.confirmed, existingManager.capacity);
+                existingManager.confAdjPct = calculateAdjustedPercentage(existingManager.confirmed, existingManager.forecast, existingManager.capacity);
+                showMessage('Existing entry replaced successfully!', 'success');
+            } else if (entryAction === 'adjust') {
+                existingManager.department = department;
+                existingManager.confirmed = clampToZero(existingManager.confirmed + confirmedInput);
+                existingManager.forecast = clampToZero(existingManager.forecast + forecastInput);
+                const capacityDelta = capacityAdjustment !== 0 ? capacityAdjustment : capacityInput;
+                existingManager.capacity = clampToZero(existingManager.capacity + capacityDelta);
+                existingManager.confCapPct = calculatePercentage(existingManager.confirmed, existingManager.capacity);
+                existingManager.confAdjPct = calculateAdjustedPercentage(existingManager.confirmed, existingManager.forecast, existingManager.capacity);
+                showMessage('Existing entry adjusted and totals updated successfully!', 'success');
+            }
+
+            recalculatePercentages();
+            renderDashboard();
+            updateStats();
+            saveActuals();
+            clearEntryForm();
         }
 
         // Filter data based on search and filters
