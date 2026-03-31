@@ -799,6 +799,14 @@
     }
     function sumProjectTargets(periodLabel, filters = {}, dateLike = REPORTING_MONTH_DATE){
       if (allFiltersCleared(filters)) return scaleMonthlyProjectedBudgetForPeriod(PROJECTED_MONTHLY_BUDGET_MAR26, periodLabel, dateLike);
+      const selectedCostCenter = normalizeCostCenterName(filters?.costCenter || '');
+      const hasManagerFilter = !!(filters?.manager && filters.manager !== 'All');
+      const hasProjectFilter = !!(filters?.project && filters.project !== 'All');
+      if (selectedCostCenter === 'Onpoint Ontime' && !hasManagerFilter && !hasProjectFilter) {
+        return periodLabel === 'Yearly'
+          ? PROJECTED_YEARLY_CONFIRMED_TOTAL
+          : scaleMonthlyProjectedBudgetForPeriod(42479014, periodLabel, dateLike);
+      }
       const filteredTotal = confirmedProjects()
         .filter(project => projectMatchesFilters(project, filters))
         .reduce((sum, project) => sum + projectTargetForPeriod(project, periodLabel, dateLike), 0);
