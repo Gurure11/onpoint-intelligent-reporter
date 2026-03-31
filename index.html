@@ -186,6 +186,10 @@
         <div class="card"><h3>Reported revenue vs target</h3><canvas id="barChart"></canvas></div>
         <div class="card"><h3>Division mix</h3><canvas id="pieChart" class="small-canvas"></canvas><div id="divisionMixLegend"></div></div>
       </div>
+      <div class="row two section">
+        <div class="card"><h3>Gross Profit by Sector</h3><canvas id="gpSectorPieChart" class="small-canvas"></canvas></div>
+        <div class="card"><h3>Gross Profit by Sector</h3><div class="table-wrap"><table id="gpSectorTable"></table></div></div>
+      </div>
     </div>
 
     <div id="performance" class="tab-content section">
@@ -576,7 +580,8 @@
     const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const STRAIGHT_LINE_MONTHLY_BUDGET = 22000000;
     const REPORTING_MONTH_DATE = new Date(2026, 2, 1);
-    const PROJECTED_MONTHLY_BUDGET_MAR26 = 56140157;
+    const PROJECTED_MONTHLY_BUDGET_MAR26 = 39556824;
+    const PROJECTED_YEARLY_CONFIRMED_TOTAL = 509748178;
     const MANAGER_STRAIGHT_LINE_MONTHLY_TARGETS = {
       'johan': 5000000,
       'moses': 4040000,
@@ -584,6 +589,29 @@
       'starnley': 2429000,
       'timothy': 6000000
     };
+    const PM_MONTHLY_COMPARISON = [
+      { manager:'Johan', budget:5000000, fallbackActual:3419516 },
+      { manager:'Moses', budget:4040000, fallbackActual:2766000 },
+      { manager:'Starnley', budget:2429000, fallbackActual:2350000 },
+      { manager:'Timothy', budget:6000000, fallbackActual:3722860.12 }
+    ];
+    const PROJECT_TARGET_OVERRIDES = {
+      'emfulenivo': 1500000,
+      'joegqabi': 4000000,
+      'zamafuthi': 2000000,
+      'kznchivelstone': 290990,
+      'kznchivestone': 290990
+    };
+    const GP_SECTOR_ROWS = [
+      { onpoint:34753500, aqua:20263778, nkanyezi:4140000, total:59157278 },
+      { onpoint:0, aqua:46395000, nkanyezi:0, total:46395000 },
+      { onpoint:17280000, aqua:0, nkanyezi:0, total:17280000 },
+      { onpoint:26847391, aqua:0, nkanyezi:510000, total:27357391 },
+      { onpoint:0, aqua:0, nkanyezi:0, total:0 },
+      { onpoint:15876000, aqua:0, nkanyezi:150000, total:16026000 }
+    ];
+    const GP_SECTOR_TOTALS = { onpoint:94756891, aqua:66658778, nkanyezi:4800000, total:166215669 };
+    const GP_SECTOR_MARGINS = { onpoint:31, aqua:45, nkanyezi:42, total:36 };
     const FISCAL_MONTH_COLUMN_ALIASES = {
       2: ['Mar26','Mar 26','March 2026','March-2026','March_2026','March26','L'],
       3: ['Apr26','Apr 26','April 2026','April-2026','April_2026','April26','M'],
@@ -604,8 +632,14 @@
       if (periodLabel === 'Weekly') return (monthly / Math.max(daysInMonth(d), 1)) * 7;
       if (periodLabel === 'Monthly') return monthly;
       if (periodLabel === 'Quarterly') return monthly * 3;
-      if (periodLabel === 'Yearly') return monthly * 12;
+      if (periodLabel === 'Yearly') return PROJECTED_YEARLY_CONFIRMED_TOTAL;
       return monthly;
+    }
+    function isConfirmedProject(project){
+      return normalizedString(project?.status) === 'confirmed';
+    }
+    function confirmedProjects(){
+      return projectsData.filter(isConfirmedProject);
     }
     function allFiltersCleared(filters = {}){
       return (!filters.costCenter || filters.costCenter === 'All') && (!filters.manager || filters.manager === 'All') && (!filters.project || filters.project === 'All');
@@ -613,8 +647,9 @@
 
     function projectedAllocationRatio(filters = {}, dateLike = REPORTING_MONTH_DATE){
       if (allFiltersCleared(filters)) return 1;
-      const matchedProjects = projectsData.filter(project => projectMatchesFilters(project, filters));
-      const totalProjectIncome = projectsData.reduce((sum, project) => sum + num(project.totalIncome), 0);
+      const confirmed = confirmedProjects();
+      const matchedProjects = confirmed.filter(project => projectMatchesFilters(project, filters));
+      const totalProjectIncome = confirmed.reduce((sum, project) => sum + num(project.totalIncome), 0);
       const matchedProjectIncome = matchedProjects.reduce((sum, project) => sum + num(project.totalIncome), 0);
       if (matchedProjectIncome > 0 && totalProjectIncome > 0) return matchedProjectIncome / totalProjectIncome;
 
@@ -731,6 +766,8 @@
     function getMonthTargetForProject(project, dateLike = REPORTING_MONTH_DATE){
       const d = safeDate(dateLike) || REPORTING_MONTH_DATE;
       const monthIndex = d.getMonth();
+      const projectKey = normalizeTextKey(project?.project || '');
+      if (PROJECT_TARGET_OVERRIDES[projectKey] != null) return num(PROJECT_TARGET_OVERRIDES[projectKey]);
       if (project?.monthlyTargets && Object.prototype.hasOwnProperty.call(project.monthlyTargets, monthIndex)) return num(project.monthlyTargets[monthIndex]);
       if (num(project?.monthlyTarget) > 0) return num(project.monthlyTarget);
       const annual = num(project?.totalIncome);
@@ -743,14 +780,16 @@
       return true;
     }
     function projectTargetForPeriod(project, period, dateLike = REPORTING_MONTH_DATE){
+      if (!isConfirmedProject(project)) return 0;
       const d = safeDate(dateLike) || REPORTING_MONTH_DATE;
       let monthTarget = getMonthTargetForProject(project, d);
       if (!monthTarget) {
-        const totalIncome = projectsData.reduce((sum, item) => sum + num(item.totalIncome), 0);
+        const confirmed = confirmedProjects();
+        const totalIncome = confirmed.reduce((sum, item) => sum + num(item.totalIncome), 0);
         const projectIncome = num(project?.totalIncome);
         if (projectIncome > 0 && totalIncome > 0) monthTarget = PROJECTED_MONTHLY_BUDGET_MAR26 * (projectIncome / totalIncome);
       }
-      const annual = monthTarget ? monthTarget * 12 : num(project?.totalIncome);
+      const annual = num(project?.totalIncome) || 0;
       if (period === 'Daily') return monthTarget / Math.max(daysInMonth(d), 1);
       if (period === 'Weekly') return (monthTarget / Math.max(daysInMonth(d), 1)) * 7;
       if (period === 'Monthly') return monthTarget;
@@ -760,12 +799,15 @@
     }
     function sumProjectTargets(periodLabel, filters = {}, dateLike = REPORTING_MONTH_DATE){
       if (allFiltersCleared(filters)) return scaleMonthlyProjectedBudgetForPeriod(PROJECTED_MONTHLY_BUDGET_MAR26, periodLabel, dateLike);
-      const filteredTotal = projectsData
+      const filteredTotal = confirmedProjects()
         .filter(project => projectMatchesFilters(project, filters))
         .reduce((sum, project) => sum + projectTargetForPeriod(project, periodLabel, dateLike), 0);
       if (filteredTotal > 0) return filteredTotal;
       const ratio = projectedAllocationRatio(filters, dateLike);
-      if (ratio > 0) return scaleMonthlyProjectedBudgetForPeriod(PROJECTED_MONTHLY_BUDGET_MAR26 * ratio, periodLabel, dateLike);
+      if (ratio > 0) {
+        if (periodLabel === 'Yearly') return PROJECTED_YEARLY_CONFIRMED_TOTAL * ratio;
+        return scaleMonthlyProjectedBudgetForPeriod(PROJECTED_MONTHLY_BUDGET_MAR26 * ratio, periodLabel, dateLike);
+      }
       return 0;
     }
     function straightLineBudgetForPeriod(periodLabel, filters = {}){
@@ -1169,9 +1211,19 @@
     }
 
     function getAnalysisOptions(mode){
-      if (mode === 'project') return [...new Set(projectsData.map(p => p.project).filter(Boolean).concat(revenueData.map(r => r.projectName).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
-      if (mode === 'manager') return [...new Set(projectsData.map(p => p.pm).filter(Boolean).concat(revenueData.map(r => r.manager).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
-      return [...new Set(COST_CENTERS.concat(projectsData.map(p => p.division).filter(Boolean)).concat(revenueData.map(r => r.costCenter).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
+      const scopedProjects = projectsData.filter(project => {
+        const passDivision = state.division === 'All' || normalizeCostCenterName(project.division) === normalizeCostCenterName(state.division);
+        const passManager = state.manager === 'All' || sameText(project.pm, state.manager);
+        return passDivision && passManager;
+      });
+      const scopedRevenue = revenueData.filter(row => {
+        const passDivision = state.division === 'All' || normalizeCostCenterName(row.costCenter) === normalizeCostCenterName(state.division);
+        const passManager = state.manager === 'All' || sameText(row.manager, state.manager);
+        return passDivision && passManager;
+      });
+      if (mode === 'project') return [...new Set(scopedProjects.map(p => p.project).filter(Boolean).concat(scopedRevenue.map(r => r.projectName).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
+      if (mode === 'manager') return [...new Set(scopedProjects.map(p => p.pm).filter(Boolean).concat(scopedRevenue.map(r => r.manager).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
+      return [...new Set(COST_CENTERS.concat(scopedProjects.map(p => p.division).filter(Boolean)).concat(scopedRevenue.map(r => r.costCenter).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
     }
 
     function populateAnalysisFilters(){
@@ -1191,8 +1243,8 @@
 
     function getAnalysisFilters(mode = state.analysisMode, selected = state.analysisValue){
       return {
-        costCenter: mode === 'costCenter' && selected !== 'All' ? selected : 'All',
-        manager: mode === 'manager' && selected !== 'All' ? selected : 'All',
+        costCenter: mode === 'costCenter' && selected !== 'All' ? selected : state.division,
+        manager: mode === 'manager' && selected !== 'All' ? selected : state.manager,
         project: mode === 'project' && selected !== 'All' ? selected : 'All'
       };
     }
@@ -1249,68 +1301,67 @@
     }
 
     function renderPerformanceAnalysisCharts(){
-      const trend = buildAnalysisTrendSeries();
-      const mode = state.analysisMode;
-      const selected = state.analysisValue;
-      const period = state.analysisPeriod || 'Daily';
-      const filters = getAnalysisFilters(mode, selected);
-      const modeLabel = analysisDimensionLabel(mode);
-      const selectedLabel = selected === 'All'
-        ? (mode === 'project' ? 'All Projects' : mode === 'manager' ? 'All Project Managers' : 'All Cost Centers')
-        : selected;
-
       const varianceCanvas = byId('varianceChart');
       const projectedCanvas = byId('projectedChart');
 
       if (charts.variance) charts.variance.destroy();
       if (charts.projectedAnalysis) charts.projectedAnalysis.destroy();
 
+      const chartManagers = PM_MONTHLY_COMPARISON.filter(item => state.manager === 'All' || sameText(item.manager, state.manager));
+      const pmRows = chartManagers.map(item => {
+        const revenueActual = periodRevenueRows('Monthly', { manager:item.manager, costCenter: state.division, project:'All' }).reduce((sum, row) => sum + num(row.amount), 0);
+        const actual = revenueActual > 0 ? revenueActual : item.fallbackActual;
+        const projected = sumProjectTargets('Monthly', { manager:item.manager, costCenter: state.division, project:'All' }) || item.budget;
+        const straight = item.budget;
+        const achievement = pct(actual, straight);
+        return { name:item.manager, actual, projected, straight, achievement };
+      }).sort((a,b) => a.achievement - b.achievement);
+
       if (varianceCanvas) {
         charts.variance = new Chart(varianceCanvas, {
-          type:'line',
+          type:'bar',
           data:{
-            labels: trend.map(item => item.name),
+            labels: pmRows.map(item => item.name),
             datasets:[
-              { label:'Actual Revenue', data: trend.map(item => item.actual), borderColor:'#0f172a', backgroundColor:'rgba(15,23,42,.10)', fill:true, tension:.35 },
-              { label:'Straight-line Budget', data: trend.map(item => item.budget), borderColor:'#64748b', backgroundColor:'rgba(100,116,139,.08)', fill:true, tension:.35 }
+              { label:'Actual Revenue', data: pmRows.map(item => item.actual), backgroundColor:'#0f172a', borderRadius:10, order:2 },
+              { label:'Straight-line Budget', data: pmRows.map(item => item.straight), backgroundColor:'#94a3b8', borderRadius:10, order:3 },
+              { label:'Achievement %', data: pmRows.map(item => item.achievement), type:'line', yAxisID:'y1', borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,.08)', tension:.35, fill:false, pointRadius:4, order:1 }
             ]
           },
           options:{
             responsive:true,
             maintainAspectRatio:false,
+            scales:{
+              y:{ beginAtZero:true },
+              y1:{ beginAtZero:true, position:'right', grid:{ drawOnChartArea:false }, suggestedMax:120 }
+            },
             plugins:{
-              title:{ display:true, text:`${modeLabel}: ${selectedLabel} · ${period}` }
+              title:{ display:true, text:'Monthly Actual Revenue vs Straight-line Budget by Project Manager' }
             }
           }
         });
       }
 
-      const rows = aggregateDimensionFromSheets(
-        mode === 'manager' ? 'pm' : mode === 'project' ? 'project' : 'division',
-        filters
-      ).map(row => {
-        const actual = period === 'Daily' ? row.daily : period === 'Weekly' ? row.weekly : period === 'Monthly' ? row.monthly : period === 'Quarterly' ? row.quarterly : row.yearly;
-        const projected = period === 'Daily' ? row.projectedDaily : period === 'Weekly' ? row.projectedWeekly : period === 'Monthly' ? row.projectedMonthly : period === 'Quarterly' ? row.projectedQuarterly : row.projectedYearly;
-        const score = pct(actual, projected);
-        return { name:row.name, actual, projected, score };
-      }).filter(item => item.actual || item.projected)
-        .sort((a,b) => a.score - b.score);
-
       if (projectedCanvas) {
         charts.projectedAnalysis = new Chart(projectedCanvas, {
           type:'bar',
           data:{
-            labels: rows.map(item => item.name),
+            labels: pmRows.map(item => item.name),
             datasets:[
-              { label:'Actual Revenue', data: rows.map(item => item.actual), backgroundColor:'#0f172a', borderRadius:10 },
-              { label:'Projected Budget', data: rows.map(item => item.projected), backgroundColor:'#cbd5e1', borderRadius:10 }
+              { label:'Actual Revenue', data: pmRows.map(item => item.actual), backgroundColor:'#0f172a', borderRadius:10, order:2 },
+              { label:'Projected Budget', data: pmRows.map(item => item.projected), backgroundColor:'#cbd5e1', borderRadius:10, order:3 },
+              { label:'Achievement %', data: pmRows.map(item => pct(item.actual, item.projected || item.straight)), type:'line', yAxisID:'y1', borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)', tension:.35, fill:false, pointRadius:4, order:1 }
             ]
           },
           options:{
             responsive:true,
             maintainAspectRatio:false,
+            scales:{
+              y:{ beginAtZero:true },
+              y1:{ beginAtZero:true, position:'right', grid:{ drawOnChartArea:false }, suggestedMax:120 }
+            },
             plugins:{
-              title:{ display:true, text:`Lowest % first · ${modeLabel} · ${period}` }
+              title:{ display:true, text:'Monthly Actual Revenue vs Projected Budget by Project Manager' }
             }
           }
         });
@@ -1481,7 +1532,7 @@
       const activeSummary = periodSummaries[state.period];
       const groupRollup = aggregateGroup(filtered);
       const divisionRollup = aggregateDimensionFromSheets('division', { costCenter: state.division, manager: state.manager, project: 'All' });
-      const pmRollup = aggregateDimensionFromSheets('pm', { costCenter: state.division, manager: 'All', project: 'All' });
+      const pmRollup = aggregateDimensionFromSheets('pm', { costCenter: state.division, manager: state.manager, project: 'All' });
       const filteredRevenueRows = activeSummary.rows;
       const filteredActualRevenue = activeSummary.actual;
       const filteredTargetRevenue = activeSummary.target;
@@ -1502,8 +1553,13 @@
         return passDivision && passManager && passQuery;
       });
       const allProjects = enrichedProjects();
-      const confirmedTotal = allProjects.filter(p => String(p.status).toLowerCase() === 'confirmed').reduce((s,p) => s + p.totalIncome, 0);
-      const forecastTotal = allProjects.filter(p => String(p.status).toLowerCase() === 'forecast').reduce((s,p) => s + p.totalIncome, 0);
+      const scopedProjects = allProjects.filter(project => {
+        const passDivision = state.division === 'All' || normalizeCostCenterName(project.division) === normalizeCostCenterName(state.division);
+        const passManager = state.manager === 'All' || sameText(project.pm, state.manager);
+        return passDivision && passManager;
+      });
+      const confirmedTotal = scopedProjects.filter(p => String(p.status).toLowerCase() === 'confirmed').reduce((s,p) => s + p.totalIncome, 0);
+      const forecastTotal = scopedProjects.filter(p => String(p.status).toLowerCase() === 'forecast').reduce((s,p) => s + p.totalIncome, 0);
       const totalOrderBook = confirmedTotal + forecastTotal;
       const ytd = periodSummaries['Yearly'].actual;
       const btye = Math.max(0, confirmedTotal - ytd);
@@ -1621,6 +1677,7 @@
       renderInvoiceSummary();
       renderInvoiceBreakdowns();
       renderInvoiceLog();
+      renderGrossProfitBySector();
       bindDynamicEvents();
     }
 
@@ -1641,6 +1698,51 @@
           cell(item.paymentDate || '-')
         ])
       );
+    }
+
+
+    function renderGrossProfitBySector(){
+      const headers = [
+        { label:'Line' },
+        { label:'On Point', class:'right' },
+        { label:'Aqua Telecoms', class:'right' },
+        { label:'Nkanyezi', class:'right' },
+        { label:'Total', class:'right' }
+      ];
+      const body = GP_SECTOR_ROWS.map((row, index) => [
+        cell(`Line ${index + 1}`),
+        cell(row.onpoint ? money(row.onpoint) : '-', 'right'),
+        cell(row.aqua ? money(row.aqua) : '-', 'right'),
+        cell(row.nkanyezi ? money(row.nkanyezi) : '-', 'right'),
+        cell(row.total ? money(row.total) : '-', 'right')
+      ]);
+      body.push([
+        cell('<strong>Total</strong>'),
+        cell(`<strong>${money(GP_SECTOR_TOTALS.onpoint)}</strong>`, 'right'),
+        cell(`<strong>${money(GP_SECTOR_TOTALS.aqua)}</strong>`, 'right'),
+        cell(`<strong>${money(GP_SECTOR_TOTALS.nkanyezi)}</strong>`, 'right'),
+        cell(`<strong>${money(GP_SECTOR_TOTALS.total)}</strong>`, 'right')
+      ]);
+      body.push([
+        cell('<strong>Margin %</strong>'),
+        cell(`<strong>${GP_SECTOR_MARGINS.onpoint}%</strong>`, 'right'),
+        cell(`<strong>${GP_SECTOR_MARGINS.aqua}%</strong>`, 'right'),
+        cell(`<strong>${GP_SECTOR_MARGINS.nkanyezi}%</strong>`, 'right'),
+        cell(`<strong>${GP_SECTOR_MARGINS.total}%</strong>`, 'right')
+      ]);
+      buildTable(byId('gpSectorTable'), headers, body);
+
+      const canvas = byId('gpSectorPieChart');
+      if (!canvas) return;
+      charts.gpSectorPie?.destroy?.();
+      charts.gpSectorPie = new Chart(canvas, {
+        type:'pie',
+        data:{
+          labels:['On Point','Aqua Telecoms','Nkanyezi'],
+          datasets:[{ data:[GP_SECTOR_TOTALS.onpoint, GP_SECTOR_TOTALS.aqua, GP_SECTOR_TOTALS.nkanyezi], backgroundColor:['#0f172a','#64748b','#94a3b8'], borderWidth:0 }]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom' } } }
+      });
     }
 
     function renderCharts(performanceTrend, divisionMix){
