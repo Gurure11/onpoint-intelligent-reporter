@@ -590,10 +590,10 @@
       'timothy': 6000000
     };
     const PM_MONTHLY_COMPARISON = [
-      { manager:'Johan', budget:5000000, fallbackActual:3419516 },
-      { manager:'Moses', budget:4040000, fallbackActual:2766000 },
-      { manager:'Starnley', budget:2429000, fallbackActual:2350000 },
-      { manager:'Timothy', budget:6000000, fallbackActual:3722860.12 }
+      { manager:'Johan', projected:5000000, straight:5000000, fallbackActual:3419516 },
+      { manager:'Moses', projected:4040000, straight:4040000, fallbackActual:2766000 },
+      { manager:'Starnley', projected:2429000, straight:2429000, fallbackActual:2350000 },
+      { manager:'Timothy', projected:6000000, straight:6000000, fallbackActual:3722860.12 }
     ];
     const PROJECT_TARGET_OVERRIDES = {
       'emfulenivo': 1500000,
@@ -1311,10 +1311,11 @@
       const pmRows = chartManagers.map(item => {
         const revenueActual = periodRevenueRows('Monthly', { manager:item.manager, costCenter: state.division, project:'All' }).reduce((sum, row) => sum + num(row.amount), 0);
         const actual = revenueActual > 0 ? revenueActual : item.fallbackActual;
-        const projected = sumProjectTargets('Monthly', { manager:item.manager, costCenter: state.division, project:'All' }) || item.budget;
-        const straight = item.budget;
-        const achievement = pct(actual, straight);
-        return { name:item.manager, actual, projected, straight, achievement };
+        const projected = num(item.projected) || sumProjectTargets('Monthly', { manager:item.manager, costCenter: state.division, project:'All' }) || num(item.straight) || 0;
+        const straight = num(item.straight) || num(item.projected) || 0;
+        const achievement = pct(actual, projected || straight);
+        const straightPctValue = pct(actual, straight);
+        return { name:item.manager, actual, projected, straight, achievement, straightPctValue };
       }).sort((a,b) => a.achievement - b.achievement);
 
       if (varianceCanvas) {
@@ -1634,7 +1635,11 @@
 
       const actionLayer = filtered.map(project => {
         const actualRevenue = projectRevenueForPeriod(project, state.period);
-        const targetRevenue = project['target'+state.period];
+        const projectKey = normalizeTextKey(project.project || '');
+        let targetRevenue = project['target'+state.period];
+        if (state.period === 'Monthly' && PROJECT_TARGET_OVERRIDES[projectKey] != null) {
+          targetRevenue = num(PROJECT_TARGET_OVERRIDES[projectKey]);
+        }
         return { ...project, periodRevenue:actualRevenue, periodTarget:targetRevenue, score:pct(actualRevenue,targetRevenue) };
       }).sort((a,b)=>b.periodRevenue-a.periodRevenue || b.score-a.score);
       buildTable(byId('projectPerfTable'), [{label:'Project'},{label:'Revenue',class:'right'},{label:'Projected Budget',class:'right'},{label:'Profit',class:'right'},{label:'Deadline',class:'right'},{label:'Quality',class:'right'}], actionLayer.map(item => [cell(`<div><div style="font-weight:600;">${item.project}</div><div class="muted" style="font-size:12px;">${item.division} • ${item.pm}</div></div>`),cell(money(item.periodRevenue),'right'),cell(money(item.periodTarget),'right'),cell(badge(item.gpPercent+'%',statusTone(item.gpPercent*4)),'right'),cell(badge(item.deadlineScore+'%',statusTone(item.deadlineScore)),'right'),cell(badge(item.qualityScore+'%',statusTone(item.qualityScore)),'right')]));
