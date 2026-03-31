@@ -310,13 +310,13 @@
   </div>
 
   <script>
-    const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz4CMKGdXAzlrTDDYcKN1BjCRu8HsQOEs5lVeQ0B5jWK4fTN8fZcNqpTo-OXAncg5hKyQ/exec';
-    const STORAGE_KEYS = { scriptUrl:'onpoint.scriptUrl', fallbackMode:'onpoint.fallbackMode', revenueBudgetMemory:'onpoint.revenueBudgetMemory', formDraft:'onpoint.formDraft' };
+    const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzSfG8ot9nk-pDGfq9QRGtFX7T_tnk3lLePFMdAJv2pbxTWElupDDeRChmXMyWaa7ITxA/exec';
+    const STORAGE_KEYS = { scriptUrl:'onpoint.scriptUrl', fallbackMode:'onpoint.fallbackMode', revenueBudgetMemory:'onpoint.revenueBudgetMemory', straightLineMemory:'onpoint.straightLineMemory', formDraft:'onpoint.formDraft' };
     const PERIODS = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
     const DIVISION_COLORS = ['#0f172a','#334155','#475569','#64748b','#94a3b8','#1e293b','#475569'];
     const COST_CENTERS = ['Onpoint Ontime','Aqua Telecoms','Nkanyezi','Distinct Hire'];
     const PROJECT_OPTIONS = ['DBSA Generators','DBSA Rooiwal','Joe Gqabi','Temba','Midvaal','Coega','KZN General Buildings','Tshwane','Public Works Limpopo','Limpopo Eskom Substation Ephraim Mogale','Naizna','Cape Town','COT Streetlights','COT Electrification','COT Metering','COE Streetlights','Msunduzi E50','Msunduzi Streetlights','Msunduzi E33','Msunduzi E47','Moqhaka Streetlights','Moqhaka Metering','Centlec CD11','Centlec Transformers CD32','Centlec CD45','Midvaal Mechanical','Eskom SPU','Eskom FSOU Substation','Eskom ECOU','Eskom LOU General Buildings','Eskom KZN Minor Reticulation','Randwest Electrical','Randwest Roads & Stormwater','Randwest Water rand sanitation','Randwest Bulk','RAL','Stellenbosh','Liquid ECPG','Liquid ECSOD','Liquid Gauteng SOD','Telkom','MTN','Centlec','Eskom Harvard','City Power','Umhlathuze Municipality','Eskom WC','COE Buildings','Midvaal Water','Midvaal Electricity','Uthukela','Kgetleng River','Ray Nkonyeni Facility','Ray Nkonyeni Electrical Material','Ray Nkonyeni Mast','Ray Nkonyeni Meter Reading','Ramotshere Electrical Supplies','Newcastle Substations','Ubuntu','IDT North West Buidlings','Amajuba Generator','uPhongolo','Abaquilisi Battery Supplies','Abaquilisi Streetlights'];
-    const PROJECT_MANAGERS = ['Moses','Andrew','Govern','Phillip','Timothy','Stanley','Brian','Johan','Siyanda','Dave','James','Rayman','Tony','Graham','Ronald','Petros','Elroy','Mesh','Vusi','Tinotenda','Sydney','Moeti'];
+    const PROJECT_MANAGERS = ['Moses','Andrew','Govern','Phillip','Timothy','Stanley','Brian','Johan','Siyanda','Dave','James','Rayman','Tony','Graham','Ronald','Petros','Elroy','Mesh','Vusi','Tinotenda','Sydney','Moeti','George'];
 
     const state = { period:'Daily', division:'All', manager:'All', query:'', activeKpi:'all', analysisMode:'costCenter', analysisValue:'All', analysisPeriod:'Daily' };
     let charts = {}, projectsData = [], revenueData = [], invoiceData = [], managerBudgetData = [], lastDiagnostics = [], autoRefreshHandle = null, isLoadingData = false;
@@ -373,6 +373,63 @@
     }
     function setBudgetMemory(memory){
       localStorage.setItem(STORAGE_KEYS.revenueBudgetMemory, JSON.stringify(memory || {}));
+    }
+    function getStraightLineMemory(){
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.straightLineMemory) || '{}') || {}; } catch { return {}; }
+    }
+    function setStraightLineMemory(memory){
+      localStorage.setItem(STORAGE_KEYS.straightLineMemory, JSON.stringify(memory || {}));
+    }
+    function monthBudgetKey(dateLike){
+      const localDate = getLocalDateString(dateLike) || todayISO();
+      const [year, month] = localDate.split('-').map(Number);
+      const monthIndex = (month || 1) - 1;
+      if (year === 2026 && monthIndex >= 2) return `${MONTH_SHORT[monthIndex]}26`;
+      if (year === 2027 && monthIndex <= 1) return `${MONTH_SHORT[monthIndex]}27`;
+      return `${year}-${String(month || 1).padStart(2, '0')}`;
+    }
+    function straightLineBudgetKey(projectName, manager='', costCenter='', dateLike=''){
+      return [String(projectName || '').trim().toLowerCase(), String(manager || '').trim().toLowerCase(), normalizeCostCenterName(costCenter), monthBudgetKey(dateLike)].join('|');
+    }
+    function rememberStraightLineBudget(projectName, manager, costCenter, dateLike, monthlyBudget){
+      const numericBudget = num(monthlyBudget);
+      if (!projectName || numericBudget <= 0) return;
+      const memory = getStraightLineMemory();
+      memory[straightLineBudgetKey(projectName, manager, costCenter, dateLike)] = numericBudget;
+      setStraightLineMemory(memory);
+    }
+    function getRememberedStraightLineBudget(projectName, manager='', costCenter='', dateLike=''){
+      if (!projectName) return 0;
+      const memory = getStraightLineMemory();
+      const exactKey = straightLineBudgetKey(projectName, manager, costCenter, dateLike);
+      if (memory[exactKey] != null) return num(memory[exactKey]);
+      const managerAgnostic = straightLineBudgetKey(projectName, '', costCenter, dateLike);
+      if (memory[managerAgnostic] != null) return num(memory[managerAgnostic]);
+      const projectOnly = straightLineBudgetKey(projectName, '', '', dateLike);
+      if (memory[projectOnly] != null) return num(memory[projectOnly]);
+      return 0;
+    }
+    function selectedRevenueDate(){
+      return byId('revDate')?.value || todayISO();
+    }
+    function selectedProjectProjectedBudget(){
+      const projectName = byId('revProjectName')?.value || '';
+      if (!projectName) return 0;
+      const project = getProjectRecord(projectName, byId('revManager')?.value || '', byId('revCostCenter')?.value || '');
+      return project ? getMonthTargetForProject(project, selectedRevenueDate()) : 0;
+    }
+    function selectedStraightLineMonthlyBudget(){
+      return getRememberedStraightLineBudget(
+        byId('revProjectName')?.value || '',
+        byId('revManager')?.value || '',
+        byId('revCostCenter')?.value || '',
+        selectedRevenueDate()
+      );
+    }
+    function derivedDailyStraightLineBudget(){
+      const monthlyBudget = selectedStraightLineMonthlyBudget();
+      if (!monthlyBudget) return 0;
+      return monthlyBudget / Math.max(daysInMonth(selectedRevenueDate()), 1);
     }
     function revenueBudgetKey(projectName, manager='', costCenter=''){
       return [String(projectName || '').trim().toLowerCase(), String(manager || '').trim().toLowerCase(), normalizeCostCenterName(costCenter)].join('|');
@@ -456,14 +513,26 @@
         updateAchievement();
       }
     }
+    function syncRevenueBudgetFromSelections(force=false){
+      const budgetEl = byId('revBudget');
+      if (!budgetEl) return;
+      const dailyStraightLine = derivedDailyStraightLineBudget();
+      if ((force || !num(budgetEl.value)) && dailyStraightLine > 0) {
+        budgetEl.value = Math.round(dailyStraightLine * 100) / 100;
+      }
+      const projectedBudget = selectedProjectProjectedBudget();
+      if (projectedBudget > 0) budgetEl.dataset.projectedBudget = String(projectedBudget);
+      if (selectedStraightLineMonthlyBudget() > 0) budgetEl.dataset.monthlyStraightLineBudget = String(selectedStraightLineMonthlyBudget());
+      updateAchievement();
+    }
     function bindRevenueDefaults(){
-      ['revProjectName','revManager','revCostCenter'].forEach(id => {
+      ['revProjectName','revManager','revCostCenter','revDate'].forEach(id => {
         const el = byId(id);
         if (!el) return;
         el.onchange = () => {
           if (id !== 'revProjectName' && byId('revBudget') && !num(byId('revBudget').value)) applyRememberedBudget(true);
           if (id === 'revProjectName') applyRememberedBudget(true);
-          updateAchievement();
+          syncRevenueBudgetFromSelections(true);
         };
       });
       const budgetEl = byId('revBudget');
@@ -703,6 +772,10 @@
       return (!filters || Object.values(filters).every(v => !v || v === 'All')) ? 1 : 0;
     }
     function fixedStraightLineBudgetForPeriod(periodLabel, filters = {}, dateLike = REPORTING_MONTH_DATE){
+      if (filters?.project && filters.project !== 'All') {
+        const rememberedMonthly = getRememberedStraightLineBudget(filters.project, filters.manager || '', filters.costCenter || '', dateLike);
+        if (rememberedMonthly > 0) return scaleMonthlyProjectedBudgetForPeriod(rememberedMonthly, periodLabel, dateLike);
+      }
       const managerTarget = filters?.manager && filters.manager !== 'All'
         ? managerStraightLineBudgetForPeriod(filters.manager, periodLabel, dateLike)
         : 0;
@@ -1883,7 +1956,45 @@ ${error.message}`);
       const scriptUrl = byId('scriptUrlInput').value.trim() || DEFAULT_SCRIPT_URL;
       return safeFetchJson(scriptUrl, getFetchOptions('POST', payload));
     }
-    async function saveRevenue(){ const payload = { action:'addRevenue', data:{ date:byId('revDate').value, manager:byId('revManager').value, costCenter:normalizeCostCenterName(byId('revCostCenter').value), projectName:byId('revProjectName').value, amount:num(byId('revAmount').value), budget:num(byId('revBudget').value), quality:num(byId('revQuality').value), safety:num(byId('revSafety').value) } }; if (!payload.data.date || !payload.data.projectName || payload.data.amount <= 0) return alert('Please complete the daily revenue fields.'); showLoading('Saving daily revenue...'); try { rememberBudgetValue(payload.data.projectName, payload.data.manager, payload.data.costCenter, payload.data.budget); await postJsonToScript(payload); byId('revAmount').value = ''; byId('revAchievement').value = ''; await loadLiveData(false); applyRememberedBudget(true); } finally { hideLoading(); } }
+    async function saveRevenue(){
+      const dateValue = byId('revDate').value || todayISO();
+      const projectName = byId('revProjectName').value;
+      const managerName = byId('revManager').value;
+      const costCenter = normalizeCostCenterName(byId('revCostCenter').value);
+      if (!dateValue || !projectName || num(byId('revAmount').value) <= 0) return alert('Please complete the daily revenue fields.');
+      let monthlyStraightLineBudget = getRememberedStraightLineBudget(projectName, managerName, costCenter, dateValue);
+      if (!monthlyStraightLineBudget) {
+        const entered = window.prompt('Enter Monthly Straight-line Budget for this project.', '');
+        if (entered == null) return;
+        monthlyStraightLineBudget = num(entered);
+        if (monthlyStraightLineBudget <= 0) return alert('Please enter a valid Monthly Straight-line Budget.');
+        rememberStraightLineBudget(projectName, managerName, costCenter, dateValue, monthlyStraightLineBudget);
+      }
+      const dailyStraightLineBudget = monthlyStraightLineBudget / Math.max(daysInMonth(dateValue), 1);
+      if (!num(byId('revBudget').value)) byId('revBudget').value = Math.round(dailyStraightLineBudget * 100) / 100;
+      const payload = { action:'addRevenue', data:{
+        date:dateValue,
+        manager:managerName,
+        costCenter,
+        projectName,
+        amount:num(byId('revAmount').value),
+        budget:num(byId('revBudget').value),
+        projectedBudget:selectedProjectProjectedBudget(),
+        monthlyStraightLineBudget,
+        dailyStraightLineBudget,
+        quality:num(byId('revQuality').value),
+        safety:num(byId('revSafety').value)
+      } };
+      showLoading('Saving daily revenue...');
+      try {
+        rememberBudgetValue(payload.data.projectName, payload.data.manager, payload.data.costCenter, payload.data.budget);
+        await postJsonToScript(payload);
+        byId('revAmount').value = '';
+        byId('revAchievement').value = '';
+        await loadLiveData(false);
+        syncRevenueBudgetFromSelections(true);
+      } finally { hideLoading(); }
+    }
     async function saveInvoice(){
       const payload = {
         action:'addInvoice',
