@@ -207,358 +207,7 @@
   </div>
 
 <script>
-const SCRIPT_URL = 'const CONFIG = {
-  PROJECTS_SHEET_ID: '1FVTJd2NUm3iWLVAzxRbttc9wiXJIbRTB_yBtlJQgmWU',
-  PROJECTS_SHEET_NAME: 'Projects',
-
-  REVENUE_SHEET_ID: '1wl599p4871pR2tOZmIuq44pdDy6N2PggKrmMrfD8wv0',
-  REVENUE_SHEET_NAME: 'Revenue',
-
-  INVOICES_SHEET_ID: '1Tc4Kgn7UxwQNA7FCNZ7xASxRKrk6hRSJRdEs1gY88kg',
-  INVOICES_SHEET_NAME: 'Invoices',
-
-  ORDERS_SHEET_ID: '1qXz55Luti1s-0dh8qCPwxupX14kCNhtyWPJF6dpUdF0',
-  ORDERS_SHEET_NAME: 'Orders',
-
-  STRAIGHTLINE_SHEET_ID: '1BjnvNUGxXSEUPyv2vuAa0yiwGRE5bea4Ah0kUctseqs',
-  STRAIGHTLINE_SHEET_NAME: 'Straightline'
-};
-
-function doGet(e) {
-  try {
-    const action = String((e && e.parameter && e.parameter.action) || '').trim();
-    switch (action) {
-      case 'health':
-      case 'ping':
-        return jsonResponse({ success: true, message: 'Backend is running' });
-      case 'getProjects':
-        return jsonResponse({ success: true, rows: getProjects() });
-      case 'getRevenue':
-        return jsonResponse({ success: true, rows: getRevenue() });
-      case 'getInvoices':
-        return jsonResponse({ success: true, rows: getInvoices() });
-      case 'getOrders':
-        return jsonResponse({ success: true, rows: getOrders() });
-      case 'getStraightline':
-        return jsonResponse({ success: true, rows: getStraightline() });
-      case 'getManagerBudgets':
-        return jsonResponse({ success: true, rows: getManagerBudgets() });
-      default:
-        return jsonResponse({ success: false, error: 'Invalid action' });
-    }
-  } catch (error) {
-    return jsonResponse({ success: false, error: error.message || String(error) });
-  }
-}
-
-function doPost(e) {
-  try {
-    const payload = parsePostBody(e);
-    const action = String(payload.action || '').trim();
-    switch (action) {
-      case 'addRevenue':
-        return jsonResponse(addRevenue(payload));
-      case 'addProject':
-        return jsonResponse(addProject(payload));
-      case 'addInvoice':
-        return jsonResponse(addInvoice(payload));
-      case 'addPaymentReceived':
-        return jsonResponse(addPaymentReceived(payload));
-      default:
-        return jsonResponse({ success: false, error: 'Invalid action' });
-    }
-  } catch (error) {
-    return jsonResponse({ success: false, error: error.message || String(error) });
-  }
-}
-
-function jsonResponse(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
-}
-
-function parsePostBody(e) {
-  if (!e || !e.postData || !e.postData.contents) {
-    throw new Error('Missing POST body');
-  }
-  const parsed = JSON.parse(e.postData.contents);
-  return parsed && parsed.data && typeof parsed.data === 'object'
-    ? Object.assign({}, parsed.data, { action: parsed.action || parsed.data.action })
-    : parsed;
-}
-
-function openSheet(sheetId, sheetName) {
-  const sheet = SpreadsheetApp.openById(sheetId).getSheetByName(sheetName);
-  if (!sheet) throw new Error('Sheet not found: ' + sheetName + ' in spreadsheet ' + sheetId);
-  return sheet;
-}
-
-function getRows(sheetId, sheetName) {
-  const sheet = openSheet(sheetId, sheetName);
-  const values = sheet.getDataRange().getValues();
-  if (!values.length) return [];
-  const headers = values[0].map(function(h) { return String(h || '').trim(); });
-  return values.slice(1).filter(function(row) {
-    return row.some(function(cell) { return String(cell || '').trim() !== ''; });
-  }).map(function(row) {
-    const obj = {};
-    headers.forEach(function(header, index) {
-      obj[header] = row[index];
-    });
-    return obj;
-  });
-}
-
-function appendRowByHeaders(sheetId, sheetName, headerValues) {
-  const sheet = openSheet(sheetId, sheetName);
-  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(function(h) { return String(h || '').trim(); });
-  if (!headers.length || !headers[0]) throw new Error('Header row is missing in ' + sheetName);
-  const row = headers.map(function(h) {
-    return Object.prototype.hasOwnProperty.call(headerValues, h) ? headerValues[h] : '';
-  });
-  sheet.appendRow(row);
-}
-
-function pick(row, names) {
-  for (var i = 0; i < names.length; i++) {
-    var name = names[i];
-    if (Object.prototype.hasOwnProperty.call(row, name) && String(row[name] || '').trim() !== '') {
-      return row[name];
-    }
-  }
-  return '';
-}
-
-function parseNumber(value) {
-  if (value === null || value === undefined || value === '') return 0;
-  return Number(String(value).replace(/[^0-9.-]/g, '')) || 0;
-}
-
-function normalizeDate(value) {
-  if (!value) return '';
-  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  var str = String(value).trim();
-  var iso = str.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (iso) return iso[1];
-  var d = new Date(value);
-  if (!isNaN(d.getTime())) {
-    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  return str;
-}
-
-function toBool(value) {
-  return value === true || String(value || '').trim().toLowerCase() === 'true' || String(value || '').trim().toLowerCase() === 'yes';
-}
-
-function normalizeCostCenter(value) {
-  var raw = String(value || '').trim();
-  var key = raw.toLowerCase().replace(/[^a-z0-9]/g, '');
-  var aliases = {
-    onpoint: 'Onpoint Ontime',
-    onpointontime: 'Onpoint Ontime',
-    onpointgrouphq: 'Onpoint Ontime',
-    aquatelecoms: 'Aqua Telecoms',
-    nkanyezi: 'Nkanyezi',
-    nkanyeziprojects: 'Nkanyezi',
-    distincthire: 'Distinct Hire'
-  };
-  return aliases[key] || raw;
-}
-
-function getProjects() {
-  return getRows(CONFIG.PROJECTS_SHEET_ID, CONFIG.PROJECTS_SHEET_NAME).map(function(row) {
-    return {
-      CreatedAt: normalizeDate(pick(row, ['CreatedAt', 'Date', 'createdAt'])),
-      Division: normalizeCostCenter(pick(row, ['Division', 'CostCenter', 'Cost Center', 'costCenter'])),
-      Manager: String(pick(row, ['Manager', 'Project Manager', 'ProjectManager', 'manager']) || '').trim(),
-      ProjectName: String(pick(row, ['ProjectName', 'Project Name', 'projectName']) || '').trim(),
-      Location: String(pick(row, ['Location', 'location']) || '').trim(),
-      Status: String(pick(row, ['Status', 'status']) || '').trim(),
-      TotalIncome: parseNumber(pick(row, ['TotalIncome', 'Total Income', 'Amount', 'OrderValue'])),
-      Margin: parseNumber(pick(row, ['Margin', 'Margin %', 'gpPercent'])),
-      StartDate: normalizeDate(pick(row, ['StartDate', 'Start Date', 'startDate'])),
-      EndDate: normalizeDate(pick(row, ['EndDate', 'End Date', 'endDate'])),
-      Remarks: String(pick(row, ['Remarks', 'remarks']) || '').trim()
-    };
-  });
-}
-
-function getRevenue() {
-  return getRows(CONFIG.REVENUE_SHEET_ID, CONFIG.REVENUE_SHEET_NAME).map(function(row) {
-    return {
-      Date: normalizeDate(pick(row, ['Date', 'date', 'CreatedAt', 'Timestamp'])),
-      Manager: String(pick(row, ['Manager', 'Project Manager', 'ProjectManager', 'manager']) || '').trim(),
-      CostCenter: normalizeCostCenter(pick(row, ['CostCenter', 'Cost Center', 'Costcenter', 'Division', 'costCenter'])),
-      ProjectName: String(pick(row, ['ProjectName', 'Project Name', 'ProjectsName', 'projectName']) || '').trim(),
-      Amount: parseNumber(pick(row, ['Amount', 'Actuals', 'amount'])),
-      Budget: parseNumber(pick(row, ['Budget', 'Projected', 'budget'])),
-      Quality: parseNumber(pick(row, ['Quality', 'quality'])),
-      Safety: parseNumber(pick(row, ['Safety', 'safety'])),
-      CreatedAt: normalizeDate(pick(row, ['CreatedAt', 'Timestamp']))
-    };
-  });
-}
-
-function getInvoices() {
-  return getRows(CONFIG.INVOICES_SHEET_ID, CONFIG.INVOICES_SHEET_NAME).map(function(row) {
-    return {
-      Date: normalizeDate(pick(row, ['Date', 'date'])),
-      Manager: String(pick(row, ['Manager', 'manager']) || '').trim(),
-      ProjectName: String(pick(row, ['ProjectName', 'Project Name', 'projectName']) || '').trim(),
-      InvoiceNumber: String(pick(row, ['InvoiceNumber', 'Invoice No', 'invoiceNumber']) || '').trim(),
-      Amount: parseNumber(pick(row, ['Amount', 'amount'])),
-      PaymentReceived: toBool(pick(row, ['PaymentReceived', 'Paid', 'paymentReceived'])),
-      PaymentDate: normalizeDate(pick(row, ['PaymentDate', 'paymentDate'])),
-      CostCenter: normalizeCostCenter(pick(row, ['CostCenter', 'Cost Center', 'Division', 'costCenter'])),
-      EntryType: String(pick(row, ['EntryType', 'Type', 'entryType']) || '').trim(),
-      Notes: String(pick(row, ['Notes', 'notes']) || '').trim(),
-      CreatedAt: normalizeDate(pick(row, ['CreatedAt', 'Timestamp']))
-    };
-  });
-}
-
-function getOrders() {
-  return getRows(CONFIG.ORDERS_SHEET_ID, CONFIG.ORDERS_SHEET_NAME).map(function(row) {
-    return {
-      Date: normalizeDate(pick(row, ['Date', 'CreatedAt', 'createdAt'])),
-      Division: normalizeCostCenter(pick(row, ['Division', 'CostCenter', 'Cost Center', 'costCenter'])),
-      Manager: String(pick(row, ['Manager', 'Project Manager', 'ProjectManager', 'manager']) || '').trim(),
-      ProjectName: String(pick(row, ['ProjectName', 'Project Name', 'projectName']) || '').trim(),
-      Status: String(pick(row, ['Status', 'status']) || '').trim(),
-      TotalIncome: parseNumber(pick(row, ['TotalIncome', 'Total Income', 'Amount', 'OrderValue', 'ConfirmedValue', 'ForecastValue']))
-    };
-  });
-}
-
-function getStraightline() {
-  return getRows(CONFIG.STRAIGHTLINE_SHEET_ID, CONFIG.STRAIGHTLINE_SHEET_NAME).map(function(row) {
-    return {
-      Date: normalizeDate(pick(row, ['Date', 'CreatedAt', 'date'])),
-      Manager: String(pick(row, ['Manager', 'Project Manager', 'ProjectManager', 'manager']) || '').trim(),
-      CostCenter: normalizeCostCenter(pick(row, ['CostCenter', 'Cost Center', 'Division', 'costCenter'])),
-      ProjectName: String(pick(row, ['ProjectName', 'Project Name', 'projectName']) || '').trim(),
-      StraightlineBudget: parseNumber(pick(row, ['StraightlineBudget', 'Straightline Budget', 'Straight-line Budget', 'Budget', 'Amount']))
-    };
-  });
-}
-
-function getManagerBudgets() {
-  var revenue = getRevenue();
-  var straightline = getStraightline();
-  var map = {};
-
-  revenue.forEach(function(row) {
-    var key = (row.Manager || 'Unassigned') + '|' + (row.CostCenter || 'Unassigned');
-    if (!map[key]) {
-      map[key] = {
-        ProjectManager: row.Manager || 'Unassigned',
-        CostCenter: row.CostCenter || 'Unassigned',
-        Actual: 0,
-        Budget: 0,
-        StraightlineBudget: 0,
-        PerformancePct: 0
-      };
-    }
-    map[key].Actual += parseNumber(row.Amount);
-    map[key].Budget += parseNumber(row.Budget);
-  });
-
-  straightline.forEach(function(row) {
-    var key = (row.Manager || 'Unassigned') + '|' + (row.CostCenter || 'Unassigned');
-    if (!map[key]) {
-      map[key] = {
-        ProjectManager: row.Manager || 'Unassigned',
-        CostCenter: row.CostCenter || 'Unassigned',
-        Actual: 0,
-        Budget: 0,
-        StraightlineBudget: 0,
-        PerformancePct: 0
-      };
-    }
-    map[key].StraightlineBudget += parseNumber(row.StraightlineBudget);
-  });
-
-  return Object.keys(map).map(function(key) {
-    var item = map[key];
-    item.PerformancePct = item.Budget ? Math.round((item.Actual / item.Budget) * 100) : 0;
-    return item;
-  }).sort(function(a, b) {
-    return a.PerformancePct - b.PerformancePct;
-  });
-}
-
-function addRevenue(data) {
-  var payload = data || {};
-  appendRowByHeaders(CONFIG.REVENUE_SHEET_ID, CONFIG.REVENUE_SHEET_NAME, {
-    Date: normalizeDate(payload.date),
-    Manager: String(payload.manager || '').trim(),
-    CostCenter: normalizeCostCenter(payload.costCenter || payload.costCentre || payload.division),
-    ProjectName: String(payload.projectName || '').trim(),
-    Amount: parseNumber(payload.amount),
-    Budget: parseNumber(payload.budget),
-    Quality: parseNumber(payload.quality || 0),
-    Safety: parseNumber(payload.safety || 0),
-    CreatedAt: normalizeDate(new Date())
-  });
-  return { success: true, message: 'Revenue saved successfully' };
-}
-
-function addProject(data) {
-  var payload = data || {};
-  appendRowByHeaders(CONFIG.PROJECTS_SHEET_ID, CONFIG.PROJECTS_SHEET_NAME, {
-    CreatedAt: normalizeDate(payload.createdAt || new Date()),
-    Division: normalizeCostCenter(payload.division || payload.costCenter || payload.costCentre),
-    Manager: String(payload.manager || '').trim(),
-    ProjectName: String(payload.projectName || '').trim(),
-    Location: String(payload.location || '').trim(),
-    Status: String(payload.status || 'Forecast').trim(),
-    TotalIncome: parseNumber(payload.totalIncome),
-    Margin: parseNumber(payload.margin),
-    StartDate: normalizeDate(payload.startDate),
-    EndDate: normalizeDate(payload.endDate),
-    Remarks: String(payload.remarks || '').trim()
-  });
-  return { success: true, message: 'Project saved successfully' };
-}
-
-function addInvoice(data) {
-  var payload = data || {};
-  appendRowByHeaders(CONFIG.INVOICES_SHEET_ID, CONFIG.INVOICES_SHEET_NAME, {
-    Date: normalizeDate(payload.date),
-    Manager: String(payload.manager || '').trim(),
-    ProjectName: String(payload.projectName || '').trim(),
-    InvoiceNumber: String(payload.invoiceNumber || '').trim(),
-    Amount: parseNumber(payload.amount),
-    PaymentReceived: toBool(payload.paymentReceived),
-    PaymentDate: normalizeDate(payload.paymentDate),
-    CostCenter: normalizeCostCenter(payload.costCenter || payload.division),
-    EntryType: 'Invoice',
-    Notes: String(payload.notes || '').trim(),
-    CreatedAt: normalizeDate(new Date())
-  });
-  return { success: true, message: 'Invoice saved successfully' };
-}
-
-function addPaymentReceived(data) {
-  var payload = data || {};
-  appendRowByHeaders(CONFIG.INVOICES_SHEET_ID, CONFIG.INVOICES_SHEET_NAME, {
-    Date: normalizeDate(payload.date || payload.paymentDate || new Date()),
-    Manager: String(payload.manager || '').trim(),
-    ProjectName: String(payload.projectName || '').trim(),
-    InvoiceNumber: String(payload.invoiceNumber || '').trim(),
-    Amount: parseNumber(payload.amount),
-    PaymentReceived: true,
-    PaymentDate: normalizeDate(payload.paymentDate || payload.date || new Date()),
-    CostCenter: normalizeCostCenter(payload.costCenter || payload.division),
-    EntryType: 'Payment',
-    Notes: String(payload.notes || '').trim(),
-    CreatedAt: normalizeDate(new Date())
-  });
-  return { success: true, message: 'Payment saved successfully' };
-}
-';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzdNgO5t6aoCrGaHE4HFToElhd_iyIV6BQUEkK7F7oRq6YFlO8NSa0y5ESLUAR4r5Kq9w/exec';
 const PERIODS = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
 const DEFAULT_COST_CENTERS = ['Onpoint Ontime','Aqua Telecoms','Nkanyezi','Distinct Hire'];
 const state = { projects:[], revenue:[], invoices:[], managerBudgets:[], orders:[], straightline:[], filters:{ period:'Monthly', division:'All', manager:'All', search:'' } }; let charts = {};
@@ -636,6 +285,56 @@ function straightlineRowsForPeriod(period){
   }
 
   return { rows: filtered, scaled: period === 'Daily' || period === 'Weekly' };
+}
+
+function straightlineRowLooksLikeSummary(r){
+  const project = text(r.ProjectName);
+  const costCenter = text(r.CostCenter || r.Division);
+  const manager = text(r.Manager);
+  if (!manager) return true;
+  if (/total/i.test(project) || /total/i.test(costCenter)) return true;
+  if (project && costCenter && lower(project) === lower(costCenter)) return true;
+  return false;
+}
+function managerAliasKey(name){
+  return lower(name).replace(/[^a-z]/g,'');
+}
+function cleanedStraightlineRowsForPeriod(period){
+  const info = straightlineRowsForPeriod(period);
+  const seen = new Set();
+  const rows = info.rows
+    .filter(r => !straightlineRowLooksLikeSummary(r))
+    .filter(r => {
+      // keep only rows that contribute to Projected or Straightline
+      return num(r.Projected) !== 0 || num(r.StraightlineBudget) !== 0;
+    })
+    .filter(r => {
+      // stronger de-duplication to stop duplicated manager/project/projected rows from inflating totals
+      const sig = JSON.stringify([
+        managerAliasKey(r.Manager),
+        lower(text(r.ProjectName)),
+        lower(text(r.CostCenter || r.Division)),
+        num(r.Projected),
+        num(r.StraightlineBudget)
+      ]);
+      if (seen.has(sig)) return false;
+      seen.add(sig);
+      return true;
+    });
+  return { rows, scaled: info.scaled };
+}
+function logProjectedBreakdownForManager(managerName, rows){
+  const alias = managerAliasKey(managerName);
+  const matches = rows.filter(r => managerAliasKey(r.Manager) === alias);
+  const breakdown = matches.map(r => ({
+    Manager: text(r.Manager),
+    ProjectName: text(r.ProjectName),
+    CostCenter: text(r.CostCenter || r.Division),
+    Date: text(r.Date),
+    Projected: num(r.Projected)
+  }));
+  const total = breakdown.reduce((s, r) => s + num(r.Projected), 0);
+  log(`Projected breakdown for ${managerName}`, { rows: breakdown, total });
 }
 
 function costCenterPeriodRows(period = state.filters.period){
@@ -800,26 +499,40 @@ function managerPerformanceSectionRows(period = state.filters.period){
     if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false;
     return true;
   });
-  const straightInfo = straightlineRowsForPeriod(period);
+
+  const straightInfo = cleanedStraightlineRowsForPeriod(period);
+  logProjectedBreakdownForManager('Timothy', straightInfo.rows);
+
   const map = {};
-  const seedManagers = [...new Set([
+  const aliasToDisplay = {};
+  const ensureManager = (name) => {
+    const display = text(name) || 'Unassigned';
+    const alias = managerAliasKey(display);
+    if (!aliasToDisplay[alias]) aliasToDisplay[alias] = display;
+    const key = aliasToDisplay[alias];
+    if (!map[key]) map[key] = { Manager:key, Actual:0, Projected:0, Straightline:0 };
+    return key;
+  };
+
+  [
     ...actualRows.map(r => text(r.Manager)),
     ...straightInfo.rows.map(r => text(r.Manager)),
     ...state.projects.map(r => text(r.Manager)),
     ...state.orders.map(r => text(r.Manager))
-  ].filter(Boolean))];
-  seedManagers.forEach(key => { map[key] = { Manager:key, Actual:0, Projected:0, Straightline:0 }; });
+  ].filter(Boolean).forEach(ensureManager);
+
   actualRows.forEach(r => {
-    const key = text(r.Manager) || 'Unassigned';
-    if (!map[key]) map[key] = { Manager:key, Actual:0, Projected:0, Straightline:0 };
+    const key = ensureManager(r.Manager);
     map[key].Actual += num(r.Amount);
   });
+
   straightInfo.rows.forEach(r => {
-    const key = text(r.Manager) || 'Unassigned';
-    if (!map[key]) map[key] = { Manager:key, Actual:0, Projected:0, Straightline:0 };
-    map[key].Projected += straightInfo.scaled ? scalePeriodValue(r.Projected, period, r.Date) : num(r.Projected);
+    const key = ensureManager(r.Manager);
+    // Projected Budget must come from Straightline sheet only
+    map[key].Projected += num(r.Projected);
     map[key].Straightline += straightInfo.scaled ? scalePeriodValue(r.StraightlineBudget, period, r.Date) : num(r.StraightlineBudget);
   });
+
   return Object.values(map).map(item => ({
     ...item,
     ActualVsProjectedPct: item.Projected ? Math.round((item.Actual / item.Projected) * 100) : 0,
@@ -1179,7 +892,7 @@ async function loadData(){
       else { state[stateKey] = []; if (required) failures.push(`${action}: ${res.reason.message}`); }
     });
     state.managerBudgets = [];
-    log('Loaded rows', {
+    log('Loaded rows / failed endpoints', {
       revenue: state.revenue.length,
       straightline: state.straightline.length,
       orders: state.orders.length,
@@ -1193,7 +906,7 @@ async function loadData(){
     renderAll();
     if (failures.length) {
       setConn('Partially Connected','warn');
-      showToast(`Some data failed to load: ${failures[0]}`,'info');
+      showToast(`Some data failed to load: ${failures.join(' | ')}`,'info');
     } else {
       setConn('Live Connected','ok');
     }
