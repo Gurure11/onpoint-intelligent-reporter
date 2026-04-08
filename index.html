@@ -162,6 +162,17 @@
       </div>
       <div class="card" style="margin-top:16px"><h3 style="margin-top:0">Revenue Summary</h3><div id="revenueStats" class="stats"></div></div>
       <div class="card" style="margin-top:16px"><h3 style="margin-top:0">Daily Revenue transactions</h3><div class="table-wrap"><table id="dailyRevenueTransactionsTable"></table></div></div>
+      <div class="card" style="margin-top:16px">
+        <h3 style="margin-top:0">Payments Received</h3>
+        <div class="form-grid">
+          <div class="field span-2"><label>Date</label><input id="payDate" type="date"></div>
+          <div class="field span-3"><label>Project Name</label><select id="payProjectName"></select></div>
+          <div class="field span-3"><label>Project Manager</label><select id="payManager"></select></div>
+          <div class="field span-2"><label>Invoice Number</label><input id="payInvoiceNumber"></div>
+          <div class="field span-2"><label>Amount Paid</label><input id="payAmount" type="number" min="0" step="0.01"></div>
+          <div class="field span-12"><button id="savePaymentBtn" type="button">Save Payment Received</button></div>
+        </div>
+      </div>
     </div>
 
     <div class="panel" id="projectsPanel">
@@ -209,7 +220,7 @@
 
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZom5gYJ_ziWPdzBkzf6FBzwmlYkiwW_hhnGJUM6thOw_9q8rAODIu0f4jyO0TMdctvA/exec';
-const REVENUE_SAVE_URL = 'https://script.google.com/macros/s/AKfycbyZom5gYJ_ziWPdzBkzf6FBzwmlYkiwW_hhnGJUM6thOw_9q8rAODIu0f4jyO0TMdctvA/exec';
+const REVENUE_SAVE_URL = 'https://script.google.com/macros/s/AKfycbxxjKZ2sqX7yIkwPvmULif4wCNP8KEltoVNdvtgLnrN6HB-gjnEppY10045daUN0SwH/exec';
 const PERIODS = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
 const DEFAULT_COST_CENTERS = ["Onpoint Ontime", "Aqua Telecoms", "Nkanyezi", "Distinct Hire"];
 const DEFAULT_PROJECT_OPTIONS = ["DBSA Generators", "DBSA Rooiwal", "Joe Gqabi", "Temba", "Midvaal", "Coega","Osingisingin", "KZN General Buildings", "Tshwane", "Public Works Limpopo", "Limpopo Eskom Substation Ephraim Mogale", "Naizna", "Cape Town", "COT Streetlights", "COT Electrification", "COT Metering", "COE Streetlights", "Msunduzi E50", "Msunduzi Streetlights", "Msunduzi E33", "Msunduzi E47", "Moqhaka Streetlights", "Moqhaka Metering", "Centlec CD11", "Centlec Transformers CD32", "Centlec CD45", "Midvaal Mechanical", "Eskom SPU", "Eskom FSOU Substation", "Eskom ECOU", "Eskom LOU General Buildings", "Eskom KZN Minor Reticulation", "Randwest Electrical", "Randwest Roads & Stormwater", "Randwest Water rand sanitation", "Randwest Bulk", "RAL", "Stellenbosh", "Liquid ECPG", "Liquid ECSOD", "Liquid Gauteng SOD", "Telkom", "MTN", "Centlec", "Eskom Harvard", "City Power", "Umhlathuze Municipality", "Eskom WC", "COE Buildings", "Midvaal Water", "Midvaal Electricity", "Uthukela", "Kgetleng River", "Ray Nkonyeni Facility", "Ray Nkonyeni Electrical Material", "Ray Nkonyeni Mast", "Ray Nkonyeni Meter Reading", "Ramotshere Electrical Supplies", "Newcastle Substations", "Ubuntu", "IDT North West Buidlings", "Amajuba Generator", "uPhongolo", "Abaquilisi Battery Supplies", "Abaquilisi Streetlights"];
@@ -1107,6 +1118,7 @@ function populateFilters(){
   fillSelect('revManager', allManagers);
   fillSelect('projManager', allManagers);
   fillSelect('invManager', allManagers);
+  fillSelect('payManager', allManagers);
 
   fillSelect('revCostCenter', allCostCenters);
   fillSelect('projDivision', allCostCenters);
@@ -1114,6 +1126,7 @@ function populateFilters(){
 
   fillSelect('revProjectName', allProjects);
   fillSelect('invProjectName', allProjects);
+  fillSelect('payProjectName', allProjects);
 
   applyRememberedDailyBudget();
   wireProjectAdders();
@@ -1447,6 +1460,13 @@ async function saveInvoice(){
   const amount = num($('invAmount').value);
   const payload = {
     action:'addInvoiceToManagerDashboard',
+    targetSpreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
+    spreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
+    workbookName:'Manager Dashboard',
+    sheetName:'Manager Dashboard',
+    tabName:'Invoices',
+    targetTab:'Invoices',
+    entryType:'Invoice',
     date,
     manager,
     projectName,
@@ -1464,8 +1484,8 @@ async function saveInvoice(){
     const res = await postJsonToUrl(REVENUE_SAVE_URL, payload);
     await loadData();
     $('invNumber').value=''; $('invAmount').value=''; $('invPaymentDate').value=''; $('invNotes').value=''; $('invPaid').value='false';
-    showToast(res.message || 'Invoice amount has been saved to Manager Dashboard','success');
-    alert(res.message || 'Invoice amount has been saved to Manager Dashboard');
+    showToast(res.message || 'Invoice has been saved to Manager Dashboard / Invoices tab','success');
+    alert(res.message || 'Invoice has been saved to Manager Dashboard / Invoices tab');
   } catch (e) {
     showToast(`Invoice was not saved: ${e.message}`,'error');
     alert(`Invoice was not saved.
@@ -1475,7 +1495,55 @@ ${e.message}`);
     btn.textContent=old; btn.classList.remove('btn-loading');
   }
 }
-function init(){ bindTabs(); wireFilters(); wireProjectAdders(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('revDate').value = $('projCreatedAt').value = $('invDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); $('diagnostics').textContent = 'Waiting for first load...'; loadData(); }
+async function savePaymentReceived(){
+  const date = $('payDate').value || todayISO();
+  const projectName = $('payProjectName').value;
+  const manager = $('payManager').value;
+  const invoiceNumber = $('payInvoiceNumber').value;
+  const amountPaid = num($('payAmount').value);
+  const costCenter = state.projects.find(p => text(p.ProjectName)===projectName && text(p.Manager)===manager)?.Division
+    || state.revenue.find(r => text(r.ProjectName)===projectName && text(r.Manager)===manager)?.CostCenter
+    || state.revenue.find(r => text(r.ProjectName)===projectName)?.CostCenter
+    || '';
+  const payload = {
+    action:'addPaymentReceivedToManagerDashboard',
+    targetSpreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
+    spreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
+    workbookName:'Manager Dashboard',
+    sheetName:'Manager Dashboard',
+    tabName:'Invoices',
+    targetTab:'Invoices',
+    entryType:'Payment Received',
+    date,
+    projectName,
+    manager,
+    invoiceNumber,
+    amount: amountPaid,
+    amountPaid,
+    paymentReceived: true,
+    paymentDate: date,
+    costCenter,
+    notes: 'Saved from Payments Received section'
+  };
+  if (!payload.date || !payload.projectName || !payload.manager || !payload.invoiceNumber || payload.amountPaid <= 0) return alert('Complete the payment received fields first.');
+  const btn=$('savePaymentBtn'); const old=btn.textContent;
+  btn.textContent='⟳ Synchronising...'; btn.classList.add('btn-loading');
+  try {
+    const res = await postJsonToUrl(REVENUE_SAVE_URL, payload);
+    await loadData();
+    $('payInvoiceNumber').value=''; $('payAmount').value='';
+    showToast(res.message || 'Payment received has been saved to Manager Dashboard / Invoices tab','success');
+    alert(res.message || 'Payment received has been saved to Manager Dashboard / Invoices tab');
+  } catch (e) {
+    showToast(`Payment received was not saved: ${e.message}`,'error');
+    alert(`Payment received was not saved.
+
+${e.message}`);
+  } finally {
+    btn.textContent=old; btn.classList.remove('btn-loading');
+  }
+}
+function init(){ bindTabs(); wireFilters(); wireProjectAdders(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('savePaymentBtn').onclick = savePaymentReceived; $('revDate').value = $('projCreatedAt').value = $('invDate').value = $('payDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); $('diagnostics').textContent = 'Waiting for first load...'; loadData(); }
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
