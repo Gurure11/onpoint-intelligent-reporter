@@ -215,6 +215,7 @@ const DEFAULT_PROJECT_OPTIONS = ['COT Metering', 'COE Streetlights', 'Msunduzi E
 const OVERRIDE_COST_CENTER = 'Onpoint Ontime';
 const ONPOINT_OVERRIDE_TOTAL_CONFIRMED = 388301184;
 const ONPOINT_OVERRIDE_MONTHLY_PROJECTED = 34220381;
+const ONPOINT_OVERRIDE_MONTHLY_STRAIGHTLINE = 39556824;
 const state = { projects:[], revenue:[], invoices:[], managerBudgets:[], orders:[], straightline:[], filters:{ period:'Monthly', division:'All', manager:'All', search:'' } }; let charts = {};
 const $ = id => document.getElementById(id);
 const log = (...args) => { const msg = args.map(v => typeof v === 'string' ? v : JSON.stringify(v,null,2)).join(' '); $('diagnostics').textContent = `${new Date().toLocaleString()}\n${msg}\n\n` + $('diagnostics').textContent; };
@@ -368,13 +369,14 @@ function isOnpointCostCenter(value){
 function onpointProjectedTarget(period, dateValue=''){
   return scaleProjectedBudgetValue(ONPOINT_OVERRIDE_MONTHLY_PROJECTED, period, dateValue);
 }
-function onpointAprilStraightlineMonthlyBase(){
-  return filteredProjectsForBudget()
-    .filter(r => isOnpointCostCenter(r.Division || r.CostCenter))
-    .reduce((sum, r) => sum + pickBudgetValueFromProjectRow(r, 'Apr-26'), 0);
-}
 function onpointStraightlineTarget(period, dateValue=''){
-  return scaleStraightlineBudgetValue(onpointAprilStraightlineMonthlyBase(), period, dateValue);
+  const monthly = num(ONPOINT_OVERRIDE_MONTHLY_STRAIGHTLINE);
+  if (period === 'Daily') return monthly / 30;
+  if (period === 'Weekly') return monthly / 4;
+  if (period === 'Monthly') return monthly;
+  if (period === 'Quarterly') return monthly * 3;
+  if (period === 'Yearly') return monthly * 12;
+  return monthly;
 }
 function applyOnpointCostCenterOverrides(rows, period){
   if (!includesOnpointInCurrentFilter()) return rows;
@@ -936,7 +938,14 @@ function renderCostCenterPerformance(){
   }
 }
 
-function fillSelect(id, values, selected=''){ const el = $(id); const uniq = [...new Set(values.filter(Boolean))]; el.innerHTML = uniq.map(v => `<option value="${escapeHtml(v)}" ${v===selected?'selected':''}>${escapeHtml(v)}</option>`).join(''); }
+function selectOptionValues(id){ const el = $(id); return el ? [...el.options].map(o => text(o.value || o.textContent)).filter(Boolean) : []; }
+function fillSelect(id, values, selected=''){
+  const el = $(id);
+  const incoming = [...new Set((values || []).map(v => text(v)).filter(Boolean))];
+  const preserved = incoming.length ? [] : selectOptionValues(id);
+  const uniq = [...new Set([...(incoming.length ? incoming : preserved)])];
+  el.innerHTML = uniq.map(v => `<option value="${escapeHtml(v)}" ${v===selected?'selected':''}>${escapeHtml(v)}</option>`).join('');
+}
 
 function uniqueClean(values){
   return [...new Set((values || []).map(v => text(v)).filter(Boolean))];
@@ -944,26 +953,39 @@ function uniqueClean(values){
 function rawProjectNames(){
   return uniqueClean([
     ...DEFAULT_PROJECT_OPTIONS,
+    ...selectOptionValues('revProjectName'),
+    ...selectOptionValues('invProjectName'),
     ...state.projects.map(p => p.ProjectName),
     ...state.revenue.map(r => r.ProjectName),
-    ...state.orders.map(r => r.ProjectName)
+    ...state.orders.map(r => r.ProjectName),
+    ...state.straightline.map(r => r.ProjectName)
   ]);
 }
 function rawManagerNames(){
   return uniqueClean([
+    ...selectOptionValues('managerFilter'),
+    ...selectOptionValues('revManager'),
+    ...selectOptionValues('projManager'),
+    ...selectOptionValues('invManager'),
     ...state.projects.map(p => p.Manager),
     ...state.revenue.map(r => r.Manager),
     ...state.managerBudgets.map(r => r.ProjectManager),
-    ...state.orders.map(r => r.Manager)
-  ]);
+    ...state.orders.map(r => r.Manager),
+    ...state.straightline.map(r => r.Manager)
+  ]).filter(v => v !== 'All');
 }
 function rawCostCenters(){
   return uniqueClean([
     ...DEFAULT_COST_CENTERS,
+    ...selectOptionValues('divisionFilter'),
+    ...selectOptionValues('revCostCenter'),
+    ...selectOptionValues('projDivision'),
+    ...selectOptionValues('invCostCenter'),
     ...state.projects.map(p => normalizeCostCenterName(p.Division || p.CostCenter)),
     ...state.revenue.map(r => normalizeCostCenterName(r.CostCenter)),
-    ...state.orders.map(r => normalizeCostCenterName(r.Division || r.CostCenter))
-  ]);
+    ...state.orders.map(r => normalizeCostCenterName(r.Division || r.CostCenter)),
+    ...state.straightline.map(r => normalizeCostCenterName(r.CostCenter || r.Division))
+  ]).filter(v => v !== 'All');
 }
 function looksLikeCostCenter(value){
   const v = text(value);
@@ -989,19 +1011,18 @@ function populateFilters(){
   fillSelect('periodFilter', PERIODS, state.filters.period);
 
   const allCostCenters = rawCostCenters()
-    .filter(v => !looksLikeManager(v))
+    .filter(v => text(v) && v !== 'All')
     .sort((a,b)=>a.localeCompare(b));
   const divisions = ['All', ...allCostCenters];
   if (!divisions.includes(state.filters.division)) state.filters.division = 'All';
   fillSelect('divisionFilter', divisions, state.filters.division);
 
   const allProjects = rawProjectNames()
-    .filter(v => !looksLikeCostCenter(v))
+    .filter(v => text(v) && !DEFAULT_COST_CENTERS.some(c => lower(c) === lower(v)))
     .sort((a,b)=>a.localeCompare(b));
 
   const allManagers = rawManagerNames()
-    .filter(v => looksLikeManager(v))
-    .filter(v => !allProjects.some(p => lower(p) === lower(v)))
+    .filter(v => text(v) && !allProjects.some(p => lower(p) === lower(v)) && !allCostCenters.some(c => lower(c) === lower(v)))
     .sort((a,b)=>a.localeCompare(b));
   const managers = ['All', ...allManagers];
   if (!managers.includes(state.filters.manager)) state.filters.manager = 'All';
