@@ -212,6 +212,9 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzdNgO5t6aoCrGaHE4HF
 const PERIODS = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
 const DEFAULT_COST_CENTERS = ['Onpoint Ontime','Aqua Telecoms','Nkanyezi','Distinct Hire'];
 const DEFAULT_PROJECT_OPTIONS = ['COT Metering', 'COE Streetlights', 'Msunduzi E50', 'Msunduzi Streetlights', 'Msunduzi E33', 'Msunduzi E47', 'Moqhaka Streetlights', 'Moqhaka Metering', 'Centlec CD11', 'Centlec Transformers CD32', 'Centlec CD45', 'Midvaal Mechanical', 'Eskom SPU', 'Eskom FSOU Substation', 'Eskom ECOU', 'Eskom LOU General Buildings', 'Eskom KZN Minor Reticulation', 'Randwest Electrical', 'Randwest Roads & Stormwater', 'Randwest Water rand sanitation', 'Randwest Bulk', 'RAL', 'Stellenbosh', 'Liquid ECPG', 'Liquid ECSOD', 'Liquid Gauteng SOD', 'Telkom', 'MTN', 'Centlec', 'Eskom Harvard', 'City Power', 'Umhlathuze Municipality', 'Eskom WC', 'COE Buildings', 'Midvaal Water', 'Midvaal Electricity', 'Uthukela', 'Kgetleng River', 'Ray Nkonyeni Facility', 'Ray Nkonyeni Electrical Material', 'Ray Nkonyeni Mast', 'Ray Nkonyeni Meter Reading', 'Ramotshere Electrical Supplies', 'Newcastle Substations', 'Ubuntu', 'IDT North West Buidlings', 'Amajuba Generator', 'uPhongolo', 'Abaquilisi Battery Supplies', 'Abaquilisi Streetlights'];
+const OVERRIDE_COST_CENTER = 'Onpoint Ontime';
+const ONPOINT_OVERRIDE_TOTAL_CONFIRMED = 388301184;
+const ONPOINT_OVERRIDE_MONTHLY_PROJECTED = 34220381;
 const state = { projects:[], revenue:[], invoices:[], managerBudgets:[], orders:[], straightline:[], filters:{ period:'Monthly', division:'All', manager:'All', search:'' } }; let charts = {};
 const $ = id => document.getElementById(id);
 const log = (...args) => { const msg = args.map(v => typeof v === 'string' ? v : JSON.stringify(v,null,2)).join(' '); $('diagnostics').textContent = `${new Date().toLocaleString()}\n${msg}\n\n` + $('diagnostics').textContent; };
@@ -356,6 +359,64 @@ function scaleStraightlineBudgetValue(value, period, dateValue=''){
   if (period === 'Yearly') return monthly * 12;
   return monthly;
 }
+function includesOnpointInCurrentFilter(){
+  return state.filters.division === 'All' || state.filters.division === OVERRIDE_COST_CENTER;
+}
+function isOnpointCostCenter(value){
+  return normalizeCostCenterName(value) === OVERRIDE_COST_CENTER;
+}
+function onpointProjectedTarget(period, dateValue=''){
+  return scaleProjectedBudgetValue(ONPOINT_OVERRIDE_MONTHLY_PROJECTED, period, dateValue);
+}
+function onpointAprilStraightlineMonthlyBase(){
+  return filteredProjectsForBudget()
+    .filter(r => isOnpointCostCenter(r.Division || r.CostCenter))
+    .reduce((sum, r) => sum + pickBudgetValueFromProjectRow(r, 'Apr-26'), 0);
+}
+function onpointStraightlineTarget(period, dateValue=''){
+  return scaleStraightlineBudgetValue(onpointAprilStraightlineMonthlyBase(), period, dateValue);
+}
+function applyOnpointCostCenterOverrides(rows, period){
+  if (!includesOnpointInCurrentFilter()) return rows;
+  const list = rows.map(r => ({ ...r }));
+  let onpoint = list.find(r => isOnpointCostCenter(r.CostCenter));
+  if (!onpoint) {
+    onpoint = { CostCenter: OVERRIDE_COST_CENTER, Actual: 0, Projected: 0, Straightline: 0 };
+    list.push(onpoint);
+  }
+  onpoint.Projected = onpointProjectedTarget(period);
+  onpoint.Straightline = onpointStraightlineTarget(period);
+  return list.sort((a,b)=>b.Actual-a.Actual || a.CostCenter.localeCompare(b.CostCenter));
+}
+function replaceOnpointConfirmedTotal(total, orders){
+  if (!includesOnpointInCurrentFilter()) return total;
+  const onpointConfirmed = orders.filter(o => lower(o.Status)==='confirmed' && isOnpointCostCenter(o.Division || o.CostCenter)).reduce((s,o)=>s+num(o.TotalIncome || o.Amount || o.ConfirmedValue),0);
+  return total - onpointConfirmed + ONPOINT_OVERRIDE_TOTAL_CONFIRMED;
+}
+function applyManagerOverrideTotals(rows, period){
+  if (!includesOnpointInCurrentFilter()) return rows;
+  const list = rows.map(r => ({ ...r }));
+  const onpointManagerNames = new Set();
+  state.revenue.forEach(r => { if (isOnpointCostCenter(r.CostCenter)) onpointManagerNames.add(text(r.Manager) || 'Unassigned'); });
+  state.projects.forEach(r => { if (isOnpointCostCenter(r.Division || r.CostCenter)) onpointManagerNames.add(text(r.Manager) || 'Unassigned'); });
+  const onpointRows = list.filter(r => onpointManagerNames.has(text(r.Manager) || 'Unassigned'));
+  if (!onpointRows.length) return list;
+  const projectedTarget = onpointProjectedTarget(period);
+  const straightlineTarget = onpointStraightlineTarget(period);
+  const projectedBase = onpointRows.reduce((s,r)=>s+num(r.Projected),0);
+  const straightlineBase = onpointRows.reduce((s,r)=>s+num(r.Straightline),0);
+  onpointRows.forEach((row, index) => {
+    if (projectedBase > 0) {
+      row.Projected = index === onpointRows.length - 1 ? Math.max(0, projectedTarget - onpointRows.slice(0, index).reduce((s,x)=>s+num(x.Projected),0)) : Math.round((num(row.Projected) / projectedBase) * projectedTarget);
+    }
+    if (straightlineBase > 0) {
+      row.Straightline = index === onpointRows.length - 1 ? Math.max(0, straightlineTarget - onpointRows.slice(0, index).reduce((s,x)=>s+num(x.Straightline),0)) : Math.round((num(row.Straightline) / straightlineBase) * straightlineTarget);
+    }
+    row.ActualVsProjectedPct = row.Projected ? Math.round((row.Actual / row.Projected) * 100) : 0;
+    row.ActualVsStraightPct = row.Straightline ? Math.round((row.Actual / row.Straightline) * 100) : 0;
+  });
+  return list;
+}
 function straightlineRowsForPeriod(period){
   const rows = projectStraightlineRowsForPeriod(period).map(r => ({
     Manager: text(r.Manager) || 'Unassigned',
@@ -447,7 +508,7 @@ function costCenterPeriodRows(period = state.filters.period){
     if (!map[key]) map[key] = { CostCenter:key, Actual:0, Projected:0, Straightline:0 };
     map[key].Straightline += num(r.StraightlineBudget);
   });
-  return Object.values(map).sort((a,b)=>b.Actual-a.Actual || a.CostCenter.localeCompare(b.CostCenter));
+  return applyOnpointCostCenterOverrides(Object.values(map), period);
 }
 
 
@@ -470,8 +531,9 @@ function performanceSnapshot(period){
   });
   const invoiceRows = filteredInvoices(period);
   const actual = revenueRows.reduce((s,r)=>s+revenueActualValue(r),0);
-  const projected = revenueRows.reduce((s,r)=>s+scaleProjectedBudgetValue(num(r.Budget), period),0);
-  const straight = projectStraightlineRowsForPeriod(period).reduce((s,r)=>s+num(r.StraightlineBudget),0);
+  const costCenterRows = costCenterPeriodRows(period);
+  const projected = costCenterRows.reduce((s,r)=>s+num(r.Projected),0);
+  const straight = costCenterRows.reduce((s,r)=>s+num(r.Straightline),0);
   const grossProfit = revenueRows.reduce((s,r)=>s + (revenueActualValue(r) * revenueMarginValue(r) / 100), 0);
   const profitability = actual ? Math.round((grossProfit / actual) * 100) : 0;
   const invoicesIssued = invoiceRows.reduce((s,r)=>s+num(r.Amount),0);
@@ -518,11 +580,11 @@ function managerPerformanceRows(period = state.filters.period){
     if (!map[key]) map[key] = { Manager:key, Actual:0, Projected:0, Straightline:0 };
     map[key].Straightline += num(r.StraightlineBudget);
   });
-  return Object.values(map).map(item => ({
+  return applyManagerOverrideTotals(Object.values(map).map(item => ({
     ...item,
     ActualVsProjectedPct: item.Projected ? Math.round((item.Actual / item.Projected) * 100) : 0,
     ActualVsStraightPct: item.Straightline ? Math.round((item.Actual / item.Straightline) * 100) : 0
-  })).sort((a,b)=>a.ActualVsProjectedPct-b.ActualVsProjectedPct || a.ActualVsStraightPct-b.ActualVsStraightPct || a.Manager.localeCompare(b.Manager));
+  })), period).sort((a,b)=>a.ActualVsProjectedPct-b.ActualVsProjectedPct || a.ActualVsStraightPct-b.ActualVsStraightPct || a.Manager.localeCompare(b.Manager));
 }
 
 const FISCAL_MONTH_KEYS = ['Mar-26','Apr-26','May-26','Jun-26','Jul-26','Aug-26','Sep-26','Oct-26','Nov-26','Dec-26','Jan-27','Feb-27'];
@@ -614,11 +676,11 @@ function managerPerformanceSectionRows(period = state.filters.period){
     map[key].Straightline += num(r.StraightlineBudget);
   });
 
-  return Object.values(map).map(item => ({
+  return applyManagerOverrideTotals(Object.values(map).map(item => ({
     ...item,
     ActualVsProjectedPct: item.Projected ? Math.round((item.Actual / item.Projected) * 100) : 0,
     ActualVsStraightPct: item.Straightline ? Math.round((item.Actual / item.Straightline) * 100) : 0
-  })).sort((a,b)=>a.ActualVsProjectedPct - b.ActualVsProjectedPct || a.ActualVsStraightPct - b.ActualVsStraightPct || a.Manager.localeCompare(b.Manager));
+  })), period).sort((a,b)=>a.ActualVsProjectedPct - b.ActualVsProjectedPct || a.ActualVsStraightPct - b.ActualVsStraightPct || a.Manager.localeCompare(b.Manager));
 }
 
 
@@ -826,7 +888,7 @@ function costCenterComparisonChartRows(period = state.filters.period){
     if (!map[key]) map[key] = { CostCenter:key, Actual:0, Projected:0, Straightline:0 };
     map[key].Straightline += straightInfo.scaled ? scalePeriodValue(num(r.StraightlineBudget), period, r.Date) : num(r.StraightlineBudget);
   });
-  return Object.values(map).sort((a,b)=>b.Actual-a.Actual || a.CostCenter.localeCompare(b.CostCenter));
+  return applyOnpointCostCenterOverrides(Object.values(map), period);
 }
 
 function renderCostCenterPerformance(){
@@ -960,9 +1022,10 @@ function populateFilters(){
 }
 function renderKPIs(){
   const orders = filteredOrders(state.filters.period);
-  const confirmed = orders.filter(o => lower(o.Status)==='confirmed').reduce((s,o)=>s+num(o.TotalIncome || o.Amount || o.ConfirmedValue),0);
+  let confirmed = orders.filter(o => lower(o.Status)==='confirmed').reduce((s,o)=>s+num(o.TotalIncome || o.Amount || o.ConfirmedValue),0);
+  confirmed = replaceOnpointConfirmedTotal(confirmed, orders);
   const forecast = orders.filter(o => lower(o.Status)==='forecast').reduce((s,o)=>s+num(o.TotalIncome || o.Amount || o.ForecastValue),0);
-  const totalOrders = orders.reduce((s,o)=>s+num(o.TotalIncome || o.Amount || 0),0);
+  const totalOrders = confirmed + forecast;
   const actualSelected = filteredRevenue().reduce((s,r)=>s+revenueActualValue(r),0);
   const ytd = state.revenue.filter(r => {
     if (!inPeriod(r.Date,'Yearly')) return false;
@@ -1008,7 +1071,7 @@ function renderSummary(){
   buildTable($('revenueTable'), [{label:'Date'},{label:'Manager'},{label:'CostCenter'},{label:'ProjectName'},{label:'Actuals',class:'right'},{label:'Budget',class:'right'},{label:'Daily Budget',class:'right'},{label:'Quality',class:'right'},{label:'Safety',class:'right'}], rows.map(r => [escapeHtml(r.Date), escapeHtml(r.Manager), escapeHtml(r.CostCenter), escapeHtml(r.ProjectName), money(revenueActualValue(r)), money(r.Budget), money(revenueDailyBudgetValue(r)), escapeHtml(r.Quality), escapeHtml(r.Safety)]));
   const revenueRows = filteredRevenue();
   const revActual = revenueRows.reduce((s,r)=>s+revenueActualValue(r),0);
-  const revProjected = revenueRows.reduce((s,r)=>s+num(r.Budget),0);
+  const revProjected = costCenterPeriodRows(state.filters.period).reduce((s,r)=>s+num(r.Projected),0);
   const profitability = revActual ? Math.round((revenueRows.reduce((s,r)=>s + (revenueActualValue(r) * revenueMarginValue(r) / 100), 0) / revActual) * 100) : 0;
   $('revenueStats').innerHTML = [
     ['Actual', money(revActual), `${state.filters.period} / Revenue`],
