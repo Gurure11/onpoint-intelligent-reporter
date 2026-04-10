@@ -45,6 +45,11 @@
     .btn-loading{opacity:.75;pointer-events:none}
     .exec-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin:0 0 12px}
     .exec-actions button{width:auto;min-width:120px;padding:10px 14px;border-radius:12px}
+    .snapshot-toolbar{display:grid;grid-template-columns:2fr auto auto;gap:10px;align-items:end;margin-bottom:12px}
+    .snapshot-meta{font-size:12px;color:var(--muted);margin:6px 0 12px}
+    .snapshot-empty{padding:16px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);background:#f8fafc}
+    .summary-date{font-size:12px;color:var(--muted);margin:6px 0 12px}
+    @media (max-width:1100px){.snapshot-toolbar{grid-template-columns:1fr}}
     @media print{
       body *{visibility:hidden !important}
       #summaryPanel,#summaryPanel *{visibility:visible !important}
@@ -119,6 +124,7 @@
           <button id="execPrintBtn" type="button" class="secondary">Print Report</button>
         </div>
         <h3 style="margin-top:0">Executive dashboard</h3>
+        <div id="summaryAsAt" class="summary-date"></div>
         <div class="muted" style="margin-bottom:12px">Group performance at a glance for Daily, Weekly, Monthly, Quarterly and Yearly. Achievement is shown for Actual vs Projected Budget and Actual vs Straight-line Budget.</div>
         <div id="executiveGroupGrid" class="exec-grid"></div>
       </div>
@@ -139,6 +145,19 @@
         <div class="card"><h3 style="margin-top:0">Gross profit by cost center pie</h3><div class="chart-compact"><canvas id="executiveGrossProfitPieChart" height="140"></canvas></div></div>
       </div>
       <div class="card section-gap"><h3 style="margin-top:0">Daily revenue history by date</h3><div class="table-wrap"><table id="executiveHistoryTable"></table></div></div>
+      <div class="card section-gap">
+        <h3 style="margin-top:0">View history snapshots</h3>
+        <div class="snapshot-toolbar">
+          <div class="field"><label>Snapshot date</label><select id="historySnapshotSelect"></select></div>
+          <button id="saveHistorySnapshotBtn" type="button">Save Snapshot</button>
+          <button id="refreshHistorySnapshotBtn" type="button" class="secondary">Refresh View</button>
+        </div>
+        <div id="historySnapshotMeta" class="snapshot-meta"></div>
+        <div class="grid two">
+          <div class="card"><h3 style="margin-top:0">Executive summary snapshot</h3><div class="table-wrap"><table id="historyExecutiveSnapshotTable"></table></div></div>
+          <div class="card"><h3 style="margin-top:0">Performance snapshot</h3><div class="table-wrap"><table id="historyPerformanceSnapshotTable"></table></div></div>
+        </div>
+      </div>
       <div class="card" style="margin-top:16px"><h3 style="margin-top:0">Recent revenue rows</h3><div class="table-wrap"><table id="revenueTable"></table></div></div>
     </div><br><br>
     <div>
@@ -268,6 +287,14 @@ const text = v => String(v ?? '').trim();
 const lower = v => text(v).toLowerCase();
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+function formatDisplayDate(dateValue){
+  const iso = normaliseDate(dateValue);
+  if (!iso) return text(dateValue) || 'No date';
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('en-ZA',{ day:'2-digit', month:'long', year:'numeric' });
+}
+const EXEC_HISTORY_STORAGE_KEY = 'onpoint_exec_history_snapshots_v1';
 const isPlaceholderUrl = url => !text(url) || /PASTE_.*_HERE/.test(String(url)) || !/^https:\/\/script\.google\.com\/macros\/s\//.test(String(url));
 const CUSTOM_PROJECTS_KEY = 'onpoint_custom_project_names';
 function getCustomProjects(){
@@ -857,19 +884,135 @@ function executiveHistoryRows(period = state.filters.period){
   const revenueRows = revenueRowsForPeriod(period);
   const map = {};
   revenueRows.forEach(r => {
-    const key = normaliseDate(r.Date) || 'No date';
-    if (!map[key]) map[key] = { Date:key, Revenue:0, GrossProfit:0, Rows:0, CostCenters:new Set(), Managers:new Set() };
+    const dateKey = normaliseDate(r.Date) || 'No date';
+    const costCenter = normalizeCostCenterName(r.CostCenter) || 'Unassigned';
+    const key = `${dateKey}__${costCenter}`;
+    if (!map[key]) {
+      map[key] = {
+        Date: dateKey,
+        CostCenter: costCenter,
+        Revenue: 0,
+        GrossProfit: 0,
+        Projected: 0,
+        Projects: new Set()
+      };
+    }
     const actual = revenueActualValue(r);
     map[key].Revenue += actual;
     map[key].GrossProfit += executiveGrossProfitValue(actual);
-    map[key].Rows += 1;
-    if (text(r.CostCenter)) map[key].CostCenters.add(normalizeCostCenterName(r.CostCenter));
-    if (text(r.Manager)) map[key].Managers.add(text(r.Manager));
+    map[key].Projected += revenueProjectedValue(r, 'Daily');
+    if (text(r.ProjectName)) map[key].Projects.add(text(r.ProjectName));
   });
   return Object.values(map)
-    .sort((a,b)=>(a.Date < b.Date ? 1 : -1))
-    .map(r => ({ ...r, CostCenterCount:r.CostCenters.size, ManagerCount:r.Managers.size }));
+    .sort((a,b)=>(a.Date < b.Date ? 1 : (a.Date > b.Date ? -1 : a.CostCenter.localeCompare(b.CostCenter))))
+    .map(r => {
+      const grossProfitPct = r.Revenue ? Math.round((num(r.GrossProfit) / num(r.Revenue)) * 100) : 0;
+      const progressPct = r.Projected ? Math.round((num(r.Revenue) / num(r.Projected)) * 100) : 0;
+      return {
+        ...r,
+        DisplayDate: formatDisplayDate(r.Date),
+        GrossProfitPct: grossProfitPct,
+        NumberOfProjects: r.Projects.size,
+        ProgressPct: progressPct
+      };
+    });
 }
+
+function getExecutiveSnapshotStore(){
+  try {
+    const parsed = JSON.parse(localStorage.getItem(EXEC_HISTORY_STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+function setExecutiveSnapshotStore(rows){
+  localStorage.setItem(EXEC_HISTORY_STORAGE_KEY, JSON.stringify(rows));
+}
+function buildCurrentHistorySnapshot(){
+  const periods = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
+  const summary = periods.map(period => {
+    const snap = performanceSnapshot(period);
+    return {
+      Period: period,
+      Actual: Math.round(num(snap.actual)),
+      Projected: Math.round(num(snap.projected)),
+      Straightline: Math.round(num(snap.straight)),
+      ActualVsProjectedPct: num(snap.actualVsProjectedPct),
+      ActualVsStraightPct: num(snap.actualVsStraightPct)
+    };
+  });
+  const performance = managerPerformanceRows(state.filters.period).map(r => ({
+    Manager: r.Manager,
+    Actual: Math.round(num(r.Actual)),
+    Projected: Math.round(num(r.Projected)),
+    Straightline: Math.round(num(r.Straightline)),
+    PerformancePct: Math.round(num(r.ActualVsProjectedPct))
+  }));
+  return {
+    snapshotDate: todayISO(),
+    displayDate: formatDisplayDate(todayISO()),
+    selectedPeriod: text(state.filters.period || 'Monthly'),
+    createdAt: new Date().toISOString(),
+    summary,
+    performance
+  };
+}
+function saveExecutiveHistorySnapshot(showMessage = false){
+  const current = buildCurrentHistorySnapshot();
+  const all = getExecutiveSnapshotStore().filter(x => x && x.snapshotDate !== current.snapshotDate);
+  all.push(current);
+  all.sort((a,b) => String(b.snapshotDate).localeCompare(String(a.snapshotDate)));
+  setExecutiveSnapshotStore(all.slice(0, 120));
+  if (showMessage) showToast('History snapshot saved.','success');
+  return current;
+}
+function renderHistorySnapshots(){
+  const select = $('historySnapshotSelect');
+  const meta = $('historySnapshotMeta');
+  const summaryTable = $('historyExecutiveSnapshotTable');
+  const perfTable = $('historyPerformanceSnapshotTable');
+  if (!select || !meta || !summaryTable || !perfTable) return;
+  const snapshots = getExecutiveSnapshotStore().sort((a,b) => String(b.snapshotDate).localeCompare(String(a.snapshotDate)));
+  select.innerHTML = snapshots.length
+    ? snapshots.map(s => `<option value="${escapeHtml(s.snapshotDate)}">${escapeHtml(s.displayDate || s.snapshotDate)}</option>`).join('')
+    : '<option value="">No saved snapshots</option>';
+  const selectedValue = select.dataset.selectedValue && snapshots.some(s => s.snapshotDate === select.dataset.selectedValue)
+    ? select.dataset.selectedValue
+    : (select.value || snapshots[0]?.snapshotDate || '');
+  select.value = selectedValue;
+  select.dataset.selectedValue = selectedValue;
+  const snapshot = snapshots.find(s => s.snapshotDate === selectedValue);
+  if (!snapshot) {
+    meta.textContent = 'No saved snapshot yet. A daily snapshot is stored in this browser when the dashboard loads.';
+    buildTable(summaryTable, [{label:'Period'},{label:'Actual',class:'right'},{label:'Projected',class:'right'},{label:'Straight-line',class:'right'},{label:'Actual vs Projected %',class:'right'}], []);
+    buildTable(perfTable, [{label:'Manager'},{label:'Actual',class:'right'},{label:'Projected',class:'right'},{label:'Straight-line',class:'right'},{label:'Performance %',class:'right'}], []);
+    return;
+  }
+  meta.textContent = `Snapshot date: ${snapshot.displayDate || snapshot.snapshotDate} | Saved period view: ${snapshot.selectedPeriod || 'Monthly'} | Saved at: ${new Date(snapshot.createdAt).toLocaleString('en-ZA')}`;
+  buildTable(summaryTable,
+    [{label:'Period'},{label:'Actual',class:'right'},{label:'Projected',class:'right'},{label:'Straight-line',class:'right'},{label:'Actual vs Projected %',class:'right'},{label:'Actual vs Straight-line %',class:'right'}],
+    (snapshot.summary || []).map(r => [
+      escapeHtml(r.Period),
+      money(r.Actual),
+      money(r.Projected),
+      money(r.Straightline),
+      `${num(r.ActualVsProjectedPct)}%`,
+      `${num(r.ActualVsStraightPct)}%`
+    ])
+  );
+  buildTable(perfTable,
+    [{label:'Manager'},{label:'Actual',class:'right'},{label:'Projected',class:'right'},{label:'Straight-line',class:'right'},{label:'Performance %',class:'right'}],
+    (snapshot.performance || []).slice(0, 25).map(r => [
+      escapeHtml(r.Manager),
+      money(r.Actual),
+      money(r.Projected),
+      money(r.Straightline),
+      `${num(r.PerformancePct)}%`
+    ])
+  );
+}
+
 function renderExecutiveGrossProfit(){
   const gpRows = executiveGrossProfitRows(state.filters.period);
   if ($('executiveGrossProfitTable')) buildTable($('executiveGrossProfitTable'), [
@@ -886,20 +1029,23 @@ function renderExecutiveGrossProfit(){
     `${r.GrossProfitSharePct}%`
   ]));
   const historyRows = executiveHistoryRows(state.filters.period);
+  if ($('summaryAsAt')) $('summaryAsAt').textContent = `As at ${formatDisplayDate(todayISO())}`;
   if ($('executiveHistoryTable')) buildTable($('executiveHistoryTable'), [
     {label:'Date'},
+    {label:'Cost Center'},
     {label:'Revenue', class:'right'},
     {label:'Gross Profit', class:'right'},
-    {label:'Cost Centers', class:'right'},
-    {label:'Managers', class:'right'},
-    {label:'Rows', class:'right'}
+    {label:'%', class:'right'},
+    {label:'Number of Projects', class:'right'},
+    {label:'% Progress', class:'right'}
   ], historyRows.map(r => [
-    escapeHtml(r.Date),
+    escapeHtml(r.DisplayDate),
+    escapeHtml(r.CostCenter),
     money(r.Revenue),
     money(r.GrossProfit),
-    String(r.CostCenterCount),
-    String(r.ManagerCount),
-    String(r.Rows)
+    `${num(r.GrossProfitPct)}%`,
+    String(r.NumberOfProjects),
+    `${num(r.ProgressPct)}%`
   ]));
   if (typeof Chart === 'undefined' || !summaryPanelActive()) return;
   const pieCtx = $('executiveGrossProfitPieChart')?.getContext('2d');
@@ -1451,11 +1597,24 @@ function wireExecutiveExports(){
   if ($('execExcelBtn')) $('execExcelBtn').onclick = exportExecutiveExcel;
   if ($('execCsvBtn')) $('execCsvBtn').onclick = exportExecutiveCsv;
   if ($('execPrintBtn')) $('execPrintBtn').onclick = exportExecutivePdf;
+  if ($('saveHistorySnapshotBtn')) $('saveHistorySnapshotBtn').onclick = () => {
+    const saved = saveExecutiveHistorySnapshot(true);
+    if ($('historySnapshotSelect')) $('historySnapshotSelect').dataset.selectedValue = saved.snapshotDate;
+    renderHistorySnapshots();
+  };
+  if ($('refreshHistorySnapshotBtn')) $('refreshHistorySnapshotBtn').onclick = () => renderHistorySnapshots();
+  if ($('historySnapshotSelect')) $('historySnapshotSelect').onchange = e => {
+    e.target.dataset.selectedValue = e.target.value;
+    renderHistorySnapshots();
+  };
 }
 
 function renderSummary(){
   renderExecutiveDashboard();
   renderExecutiveGrossProfit();
+  const savedSnapshot = saveExecutiveHistorySnapshot(false);
+  if ($('historySnapshotSelect') && !$('historySnapshotSelect').dataset.selectedValue) $('historySnapshotSelect').dataset.selectedValue = savedSnapshot.snapshotDate;
+  renderHistorySnapshots();
   const ccRows = costCenterPeriodRows(state.filters.period);
   buildTable($('costCenterTable'), [{label:'Cost Center'},{label:'Actual',class:'right'},{label:'Projected',class:'right'},{label:'Straight-line',class:'right'},{label:'Actual vs Projected %',class:'right'}], ccRows.map(item => {
     const p = item.Projected ? Math.round((item.Actual/item.Projected)*100) : 0;
