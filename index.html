@@ -43,6 +43,16 @@
     .toast.error{border-color:#fecaca;background:#fef2f2;color:#991b1b}
     .toast.info{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
     .btn-loading{opacity:.75;pointer-events:none}
+    .exec-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin:0 0 12px}
+    .exec-actions button{width:auto;min-width:120px;padding:10px 14px;border-radius:12px}
+    @media print{
+      body *{visibility:hidden !important}
+      #summaryPanel,#summaryPanel *{visibility:visible !important}
+      #summaryPanel{display:block !important;position:absolute;left:0;top:0;width:100%;margin:0;padding:0}
+      .tabs,.topbar,.hero,.kpis,#progressCards,.gun,.exec-actions{display:none !important}
+      .card,.table-wrap{box-shadow:none !important;break-inside:avoid-page}
+      canvas{max-height:none !important;height:220px !important}
+    }
     .gun{
       color: blue;
       font-size: 25px;
@@ -102,6 +112,12 @@
 
     <div class="panel active" id="summaryPanel">
       <div class="card">
+        <div class="exec-actions">
+          <button id="execPdfBtn" type="button">Download PDF</button>
+          <button id="execExcelBtn" type="button">Download Excel</button>
+          <button id="execCsvBtn" type="button">Download CSV</button>
+          <button id="execPrintBtn" type="button" class="secondary">Print Report</button>
+        </div>
         <h3 style="margin-top:0">Executive dashboard</h3>
         <div class="muted" style="margin-bottom:12px">Group performance at a glance for Daily, Weekly, Monthly, Quarterly and Yearly. Achievement is shown for Actual vs Projected Budget and Actual vs Straight-line Budget.</div>
         <div id="executiveGroupGrid" class="exec-grid"></div>
@@ -1301,6 +1317,142 @@ function renderProgressCards(){
   }).join('') || '<div class="muted">No progress data available.</div>';
 }
 
+
+function executiveReportFileStem(){
+  const period = text(state.filters.period || 'Monthly').replace(/\s+/g,'-');
+  const date = todayISO();
+  return `executive-dashboard-${period}-${date}`;
+}
+function downloadBlob(filename, blob, mimeType='application/octet-stream'){
+  const finalBlob = blob instanceof Blob ? blob : new Blob([blob], { type: mimeType });
+  const url = URL.createObjectURL(finalBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function executiveCanvasImageMap(root){
+  const map = new Map();
+  root.querySelectorAll('canvas').forEach((canvas, index) => {
+    try {
+      map.set(canvas, { index, url: canvas.toDataURL('image/png') });
+    } catch (e) {
+      log('Canvas export skipped', e.message);
+    }
+  });
+  return map;
+}
+function executiveReportHtml(){
+  const source = $('summaryPanel');
+  const clone = source.cloneNode(true);
+  clone.querySelectorAll('.exec-actions').forEach(el => el.remove());
+  clone.querySelectorAll('script').forEach(el => el.remove());
+  const canvasMap = executiveCanvasImageMap(source);
+  clone.querySelectorAll('canvas').forEach((canvas, index) => {
+    const sourceCanvas = [...canvasMap.keys()][index];
+    const imageInfo = sourceCanvas ? canvasMap.get(sourceCanvas) : null;
+    const img = document.createElement('img');
+    img.alt = 'Chart';
+    img.style.width = '100%';
+    img.style.maxWidth = '100%';
+    img.style.height = 'auto';
+    if (imageInfo && imageInfo.url) {
+      img.src = imageInfo.url;
+      canvas.replaceWith(img);
+    } else {
+      canvas.replaceWith(document.createElement('div'));
+    }
+  });
+  const title = `Executive Dashboard Report - ${text(state.filters.period || 'Monthly')}`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title><style>
+    body{font:13px/1.4 Arial,sans-serif;color:#122033;margin:20px;background:#fff}
+    h1,h2,h3,h4{margin:0 0 10px}
+    .card{border:1px solid #dbe2ea;border-radius:16px;padding:14px;margin-bottom:16px;background:#fff;break-inside:avoid-page}
+    .grid.two,.exec-grid,.exec-finance,.stats,.progress-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .exec-grid,.exec-finance{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .table-wrap{overflow:visible;border:1px solid #dbe2ea;border-radius:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid #dbe2ea;text-align:left;vertical-align:top}
+    th{font-size:11px;text-transform:uppercase;color:#5f7187;background:#f8fafc}
+    .badge{display:inline-block;padding:4px 8px;border:1px solid #dbe2ea;border-radius:999px;font-size:11px;font-weight:700}
+    .muted{color:#5f7187}.right{text-align:right}
+    img{display:block;max-width:100%;page-break-inside:avoid}
+    @media print{body{margin:12mm}.card,.table-wrap{box-shadow:none} }
+  </style></head><body><h1>${escapeHtml(title)}</h1><div class="muted" style="margin-bottom:14px">Generated on ${escapeHtml(new Date().toLocaleString())}</div>${clone.innerHTML}</body></html>`;
+}
+function exportExecutivePdf(){
+  const reportWindow = window.open('', '_blank');
+  if (!reportWindow) {
+    showToast('Allow pop-ups to print the executive dashboard.','error');
+    return;
+  }
+  const html = executiveReportHtml();
+  reportWindow.document.open();
+  reportWindow.document.write(html);
+  reportWindow.document.close();
+  reportWindow.focus();
+  setTimeout(() => {
+    reportWindow.print();
+  }, 500);
+}
+function exportExecutiveExcel(){
+  const source = $('summaryPanel').cloneNode(true);
+  source.querySelectorAll('.exec-actions, canvas').forEach(el => el.remove());
+  const workbookHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${source.innerHTML}</body></html>`;
+  downloadBlob(`${executiveReportFileStem()}.xls`, workbookHtml, 'application/vnd.ms-excel;charset=utf-8');
+}
+function tableToCsv(table, title=''){
+  const rows = [];
+  if (title) rows.push([title]);
+  [...table.querySelectorAll('tr')].forEach(tr => {
+    const row = [...tr.children].map(cell => {
+      const value = text(cell.innerText).replace(/\n+/g, ' ');
+      return `"${value.replace(/"/g, '""')}"`;
+    });
+    if (row.length) rows.push(row);
+  });
+  return rows.map(r => r.join(',')).join('\n');
+}
+function cardsToCsvBlock(container, title){
+  const rows = [[title], ['Card','Metric','Value']];
+  [...container.children].forEach((card, index) => {
+    const heading = text(card.querySelector('h4')?.innerText) || `Card ${index + 1}`;
+    [...card.querySelectorAll('.rowline')].forEach(line => {
+      const parts = [...line.children].map(el => text(el.innerText));
+      rows.push([heading, parts[0] || '', parts[1] || '']);
+    });
+  });
+  return rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+}
+function exportExecutiveCsv(){
+  const sections = [];
+  const groupGrid = $('executiveGroupGrid');
+  const financeGrid = $('executiveFinanceGrid');
+  if (groupGrid) sections.push(cardsToCsvBlock(groupGrid, 'Executive Group Summary'));
+  if (financeGrid) sections.push(cardsToCsvBlock(financeGrid, 'Financial Summary by Period'));
+  [
+    ['executiveManagerTable','Managers performance by selected period'],
+    ['costCenterTable','Revenue by cost center'],
+    ['managerTable','PM performance at a glance'],
+    ['executiveGrossProfitTable','Gross profit by cost center'],
+    ['executiveHistoryTable','Daily revenue history by date'],
+    ['revenueTable','Recent revenue rows']
+  ].forEach(([id, title]) => {
+    const table = $(id);
+    if (table) sections.push(tableToCsv(table, title));
+  });
+  downloadBlob(`${executiveReportFileStem()}.csv`, sections.join('\n\n'), 'text/csv;charset=utf-8');
+}
+function wireExecutiveExports(){
+  if ($('execPdfBtn')) $('execPdfBtn').onclick = exportExecutivePdf;
+  if ($('execExcelBtn')) $('execExcelBtn').onclick = exportExecutiveExcel;
+  if ($('execCsvBtn')) $('execCsvBtn').onclick = exportExecutiveCsv;
+  if ($('execPrintBtn')) $('execPrintBtn').onclick = exportExecutivePdf;
+}
+
 function renderSummary(){
   renderExecutiveDashboard();
   renderExecutiveGrossProfit();
@@ -1852,7 +2004,7 @@ function populateFilters(){
 }
 function wireFilters(){ $('periodFilter').onchange = e => { state.filters.period = e.target.value; renderAll(); }; $('divisionFilter').onchange = e => { state.filters.division = e.target.value; renderAll(); }; $('managerFilter').onchange = e => { state.filters.manager = e.target.value; renderAll(); }; if ($('projectFilter')) $('projectFilter').onchange = e => { state.filters.project = e.target.value; renderAll(); }; $('searchFilter').oninput = e => { state.filters.search = e.target.value; renderAll(); }; }
 function monthlyStraightlineForRevenue(costCenter, manager, projectName, dateValue){ return monthlyStraightlineBudgetFor(costCenter, manager, projectName); }
-function init(){ bindTabs(); wireFilters(); wireProjectAdders(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('savePaymentBtn').onclick = savePaymentReceived; $('revDate').value = $('projCreatedAt').value = $('invDate').value = $('payDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); if ($('revProjectName')) $('revProjectName').addEventListener('change', applyRememberedRevenueBudgets); if ($('revManager')) $('revManager').addEventListener('change', applyRememberedRevenueBudgets); if ($('revCostCenter')) $('revCostCenter').addEventListener('change', applyRememberedRevenueBudgets); $('diagnostics').textContent = 'Waiting for first load...'; loadData(); }
+function init(){ bindTabs(); wireFilters(); wireProjectAdders(); wireExecutiveExports(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('savePaymentBtn').onclick = savePaymentReceived; $('revDate').value = $('projCreatedAt').value = $('invDate').value = $('payDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); if ($('revProjectName')) $('revProjectName').addEventListener('change', applyRememberedRevenueBudgets); if ($('revManager')) $('revManager').addEventListener('change', applyRememberedRevenueBudgets); if ($('revCostCenter')) $('revCostCenter').addEventListener('change', applyRememberedRevenueBudgets); $('diagnostics').textContent = 'Waiting for first load...'; loadData(); }
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
