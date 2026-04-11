@@ -269,7 +269,7 @@ const EXECUTIVE_AVG_GROSS_MARGIN_PCT = 31.66;
 const EXECUTIVE_PIE_COLORS = ['#0f172a','#1d4ed8','#15803d','#b45309','#b91c1c','#7c3aed','#0891b2','#ea580c','#16a34a','#be185d'];
 const DEFAULT_COST_CENTERS = ["Onpoint Ontime", "Aqua Telecoms", "Nkanyezi", "Distinct Hire"];
 const DEFAULT_PROJECT_OPTIONS = ["DBSA Generators", "DBSA Rooiwal", "Joe Gqabi", "Temba", "Midvaal", "Coega","Osingisingin", "KZN General Buildings", "Tshwane", "Public Works Limpopo", "Limpopo Eskom Substation Ephraim Mogale", "Naizna", "Cape Town", "COT Streetlights", "COT Electrification", "COT Metering", "COE Streetlights", "Msunduzi E50", "Msunduzi Streetlights", "Msunduzi E33", "Msunduzi E47", "Moqhaka Streetlights", "Moqhaka Metering", "Centlec CD11", "Centlec Transformers CD32", "Centlec CD45", "Midvaal Mechanical", "Eskom SPU", "Eskom FSOU Substation", "Eskom ECOU", "Eskom LOU General Buildings", "Eskom KZN Minor Reticulation", "Randwest Electrical", "Randwest Roads & Stormwater", "Randwest Water rand sanitation", "Randwest Bulk", "RAL", "Stellenbosh", "Liquid ECPG", "Liquid ECSOD", "Liquid Gauteng SOD", "Telkom", "MTN", "Centlec", "Eskom Harvard", "City Power", "Umhlathuze Municipality", "Eskom WC", "COE Buildings", "Midvaal Water", "Midvaal Electricity", "Uthukela", "Kgetleng River", "Ray Nkonyeni Facility", "Ray Nkonyeni Electrical Material", "Ray Nkonyeni Mast", "Ray Nkonyeni Meter Reading", "Ramotshere Electrical Supplies", "Newcastle Substations", "Ubuntu", "IDT North West Buidlings", "Amajuba Generator", "uPhongolo", "Abaquilisi Battery Supplies", "Abaquilisi Streetlights"];
-const DEFAULT_MANAGER_OPTIONS = ["Moses", "Johan", "Siyanda", "Dave", "James", "Rayman", "Timothy", "Roads Site Agent COT", "Stanley", "Civil Site Agent", "Roads Site Agent CPT", "Brian", "EL CM", "Tony", "Govern","George ","Graham", "Ronald", "Petros", "Elroy", "Mesh", "Vusi", "Tinotenda", "Sydney", "Andrew", "Phillip", "Moeti"];
+const DEFAULT_MANAGER_OPTIONS = ["Moses", "Johan", "Siyanda", "Dave", "James", "Rayman", "Timothy", "Roads Site Agent COT", "Stanley", "Civil Site Agent", "Roads Site Agent CPT", "Brian", "EL CM", "Tony", "Govern", "Graham", "Ronald", "Petros", "Elroy", "Mesh", "Vusi", "Tinotenda", "Sydney", "Andrew", "Phillip", "Moeti"];
 const OVERRIDE_COST_CENTER = 'Onpoint Ontime';
 const ONPOINT_OVERRIDE_TOTAL_CONFIRMED = 388301184;
 const GROUP_OVERRIDE_TOTAL_CONFIRMED = 551035205;
@@ -1332,25 +1332,19 @@ function rawManagerNames(){
     ...selectOptionValues('revManager'),
     ...selectOptionValues('projManager'),
     ...selectOptionValues('invManager'),
+    ...selectOptionValues('payManager'),
     ...state.projects.map(p => p.Manager),
     ...state.revenue.map(r => r.Manager),
     ...state.managerBudgets.map(r => r.ProjectManager),
     ...state.orders.map(r => r.Manager),
     ...state.straightline.map(r => r.Manager)
-  ]).filter(v => v !== 'All');
+  ]).filter(v => {
+    const name = text(v);
+    return name && name !== 'All' && !DEFAULT_COST_CENTERS.some(c => lower(c) === lower(name));
+  });
 }
 function rawCostCenters(){
-  return uniqueClean([
-    ...DEFAULT_COST_CENTERS,
-    ...selectOptionValues('divisionFilter'),
-    ...selectOptionValues('revCostCenter'),
-    ...selectOptionValues('projDivision'),
-    ...selectOptionValues('invCostCenter'),
-    ...state.projects.map(p => normalizeCostCenterName(p.Division || p.CostCenter)),
-    ...state.revenue.map(r => normalizeCostCenterName(r.CostCenter)),
-    ...state.orders.map(r => normalizeCostCenterName(r.Division || r.CostCenter)),
-    ...state.straightline.map(r => normalizeCostCenterName(r.CostCenter || r.Division))
-  ]).filter(v => v !== 'All');
+  return [...DEFAULT_COST_CENTERS];
 }
 function looksLikeCostCenter(value){
   const v = text(value);
