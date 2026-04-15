@@ -159,7 +159,7 @@
       <div id="connBadge" class="badge warn">Connecting</div>
       <button id="testBtn" type="button">Test connection</button>
       <div id="currentUserChip" class="user-chip login-hidden">Not logged in</div>
-      <button id="refreshBtn" type="button">Refresh</button>
+      <div style="display:flex;gap:10px;align-items:center"><button id="refreshBtn" type="button">Refresh</button><button id="dashboardLogoutBtn" type="button" class="secondary login-hidden">Logout</button></div>
     </div>
 
     <div class="card hero">
@@ -261,6 +261,11 @@
         <div class="card"><h3 style="margin-top:0">Cost center variance %</h3><div class="chart-compact"><canvas id="costCenterVarianceChart" height="140"></canvas></div></div>
       </div>
       <div class="card section-gap"><h3 style="margin-top:0">Cost center comparison: Actual vs Projected vs Straight-line</h3><div class="chart-compact"><canvas id="costCenterComparisonChart" height="140"></canvas></div></div>
+      <div class="grid two section-gap">
+        <div class="card"><h3 style="margin-top:0">Total invoices by cost center</h3><div class="table-wrap"><table id="performanceInvoicesByCostCenterTable"></table></div></div>
+        <div class="card"><h3 style="margin-top:0">Total payments received by cost center</h3><div class="table-wrap"><table id="performancePaymentsByCostCenterTable"></table></div></div>
+      </div>
+      <div class="card section-gap"><h3 style="margin-top:0">Total payments received by manager</h3><div class="table-wrap"><table id="performancePaymentsByManagerTable"></table></div></div>
     </div>
 
     <div class="panel" id="revenuePanel">
@@ -555,8 +560,8 @@ async function handleLogin(){
     done();
   }
 }
-function logoutUser(){ setCurrentUser(null); $('loginOverlay').classList.remove('login-hidden'); $('logoutBtn').classList.add('login-hidden'); $('loginMessage').textContent='Please sign in to continue.'; renderAll(); }
-function applyRolePermissions(){ const user=currentUserName(); if($('currentUserChip')){ $('currentUserChip').textContent = state.currentUser ? `${user} | ${text(state.currentUser.role)}` : 'Not logged in'; $('currentUserChip').classList.toggle('login-hidden', !state.currentUser); } if($('revPostedByDisplay')) $('revPostedByDisplay').value = user || ''; if($('revStatusDisplay')) $('revStatusDisplay').value = 'Pending Approval'; const revDisabled = !canPostRevenue(); const projDisabled = !canPostProject(); const invDisabled = !canPostInvoice(); const payDisabled = !canPostPayment(); if($('saveRevenueBtn')) $('saveRevenueBtn').disabled = revDisabled; if($('saveProjectBtn')) $('saveProjectBtn').disabled = projDisabled; if($('saveInvoiceBtn')) $('saveInvoiceBtn').disabled = invDisabled; if($('savePaymentBtn')) $('savePaymentBtn').disabled = payDisabled; if($('revQuality')) { $('revQuality').disabled = !canSetQuality(); $('revQuality').title = canSetQuality() ? '' : 'Only safety manager can set quality'; } if($('revManagerSafetyComment')) { $('revManagerSafetyComment').disabled = !canCommentRevenue(); $('revManagerSafetyComment').title = canCommentRevenue() ? '' : 'Only admin manager and safety manager can add this comment'; } if($('projectsPanel')) $('projectsPanel').style.display = ''; }
+function logoutUser(){ setCurrentUser(null); $('loginOverlay').classList.remove('login-hidden'); if ($('logoutBtn')) $('logoutBtn').classList.add('login-hidden'); if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').classList.add('login-hidden'); $('loginMessage').textContent='Please sign in to continue.'; renderAll(); }
+function applyRolePermissions(){ const user=currentUserName(); if($('currentUserChip')){ $('currentUserChip').textContent = state.currentUser ? `${user} | ${text(state.currentUser.role)}` : 'Not logged in'; $('currentUserChip').classList.toggle('login-hidden', !state.currentUser); } if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').classList.toggle('login-hidden', !state.currentUser); if($('revPostedByDisplay')) $('revPostedByDisplay').value = user || ''; if($('revStatusDisplay')) $('revStatusDisplay').value = 'Pending Approval'; const revDisabled = !canPostRevenue(); const projDisabled = !canPostProject(); const invDisabled = !canPostInvoice(); const payDisabled = !canPostPayment(); if($('saveRevenueBtn')) $('saveRevenueBtn').disabled = revDisabled; if($('saveProjectBtn')) $('saveProjectBtn').disabled = projDisabled; if($('saveInvoiceBtn')) $('saveInvoiceBtn').disabled = invDisabled; if($('savePaymentBtn')) $('savePaymentBtn').disabled = payDisabled; if($('revQuality')) { $('revQuality').disabled = !canSetQuality(); $('revQuality').title = canSetQuality() ? '' : 'Only safety manager can set quality'; } if($('revManagerSafetyComment')) { $('revManagerSafetyComment').disabled = !canCommentRevenue(); $('revManagerSafetyComment').title = canCommentRevenue() ? '' : 'Only admin manager and safety manager can add this comment'; } if($('projectsPanel')) $('projectsPanel').style.display = ''; }
 async function updateRevenueApproval(entry){ if(!requireRole(canApproveRevenue,'Only admin manager can approve or warn daily revenue entries.')) return; const note = window.prompt('Add approval comment (optional)', entry.ManagerComment || entry.Comment || '') || ''; try { const res = await postAction({ action:'updateRevenueApproval', targetSpreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE', spreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE', workbookName:'Manager Dashboard', sheetName:'Manager Dashboard', tabName:'Daily Revenue', targetTab:'Daily Revenue', rowId: entry.RowId || entry.ID || entry.Timestamp || entry.CreatedAt || `${entry.Date}|${entry.ProjectName}|${entry.Manager}`, date: entry.Date, manager: entry.Manager, costCenter: entry.CostCenter, projectName: entry.ProjectName, approvalStatus: entry.nextStatus, managerComment: note, approvedBy: currentUserName() }); saveLocalRevenueApproval(entry, { approvalStatus: entry.nextStatus, managerComment: note, comment: note }); showToast(res.message || 'Revenue approval updated','success'); await loadData(); } catch(e){ saveLocalRevenueApproval(entry, { approvalStatus: entry.nextStatus, managerComment: note, comment: note }); showToast('Revenue approval stored locally because Google Sheets update failed.','info'); renderAll(); } }
 async function addRevenueComment(entry){ if(!requireRole(canCommentRevenue,'Only admin manager and safety manager can comment on daily revenue entries.')) return; const roleLabel = isSafetyManager() ? 'Safety manager comment' : 'Admin manager comment'; const note = window.prompt(`Enter ${roleLabel.toLowerCase()}`, entry.ManagerComment || entry.SafetyManagerComment || entry.Comment || ''); if(note===null) return; try { const payload = { action:'updateRevenueComment', targetSpreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE', spreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE', workbookName:'Manager Dashboard', sheetName:'Manager Dashboard', tabName:'Daily Revenue', targetTab:'Daily Revenue', rowId: entry.RowId || entry.ID || entry.Timestamp || entry.CreatedAt || `${entry.Date}|${entry.ProjectName}|${entry.Manager}`, date: entry.Date, manager: entry.Manager, costCenter: entry.CostCenter, projectName: entry.ProjectName }; if (isSafetyManager()) payload.safetyManagerComment = note; else payload.managerComment = note; payload.commentedBy = currentUserName(); const res = await postAction(payload); saveLocalRevenueApproval(entry, isSafetyManager() ? { safetyManagerComment: note, comment: note } : { managerComment: note, comment: note }); showToast(res.message || 'Comment saved','success'); await loadData(); } catch(e){ saveLocalRevenueApproval(entry, isSafetyManager() ? { safetyManagerComment: note, comment: note } : { managerComment: note, comment: note }); showToast('Comment stored locally because Google Sheets update failed.','info'); renderAll(); } }
 function formatDisplayDate(dateValue){
@@ -713,6 +718,8 @@ function normaliseDate(v){
   if (isNaN(d)) return '';
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+function firstSheetColumnDate(record){ return normaliseDate(rowVal(record,0) || record?.Date || record?.date || record?.CreatedAt || record?.createdAt || record?.Timestamp || record?.timestamp || ''); }
+function recordDateForPeriod(record){ return firstSheetColumnDate(record) || normaliseDate(record?.Date || record?.date || record?.PaymentDate || record?.paymentDate || record?.CreatedAt || record?.createdAt || ''); }
 function normalizeCostCenterName(v){ const s = lower(v).replace(/[^a-z0-9]/g,''); const map = { onpoint:'Onpoint Ontime', onpointontime:'Onpoint Ontime', onpointgrouphq:'Onpoint Ontime', aquatelecoms:'Aqua Telecoms', nkanyezi:'Nkanyezi', nkanyeziprojects:'Nkanyezi', distincthire:'Distinct Hire' }; return map[s] || text(v); }
 function daysInMonth(dateStr){ const d = dateStr ? new Date(`${normaliseDate(dateStr)}T00:00:00`) : new Date(); return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
 function startOfPeriod(period, refDate = new Date()){ const d = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate()); if (period === 'Daily') return d; if (period === 'Weekly') { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); return x; } if (period === 'Monthly') return new Date(d.getFullYear(), d.getMonth(), 1); if (period === 'Quarterly') { const fiscalMonthIndex = (d.getMonth() - 2 + 12) % 12; const qStartMonth = ((Math.floor(fiscalMonthIndex / 3) * 3) + 2) % 12; const qYear = d.getMonth() < 2 && qStartMonth >= 2 ? d.getFullYear() - 1 : d.getFullYear(); return new Date(qYear, qStartMonth, 1); } const fyYear = d.getMonth() < 2 ? d.getFullYear() - 1 : d.getFullYear(); return new Date(fyYear, 2, 1); }
@@ -734,7 +741,8 @@ function filteredOrders(period = state.filters.period){
 }
 function filteredInvoices(period = state.filters.period){
   return state.invoices.filter(r => {
-    if (!inPeriod(r.Date, period)) return false;
+    const periodDate = recordDateForPeriod(r);
+    if (!inPeriod(periodDate, period)) return false;
     if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false;
     if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false;
     if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false;
@@ -744,7 +752,8 @@ function filteredInvoices(period = state.filters.period){
 }
 function filteredPayments(period = state.filters.period){
   return state.payments.filter(r => {
-    if (!inPeriod(r.Date, period)) return false;
+    const periodDate = recordDateForPeriod(r);
+    if (!inPeriod(periodDate, period)) return false;
     if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false;
     if (state.filters.manager !== 'All' && text(r.ProjectManager || r.Manager) !== state.filters.manager) return false;
     if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false;
@@ -1415,6 +1424,39 @@ function renderPerformanceCharts(snaps, managerRows){
   }
 }
 
+function aggregateBy(rows, keyFn, valueFn){
+  const map = {};
+  (rows || []).forEach(row => {
+    const key = text(keyFn(row)) || 'Unassigned';
+    if (!map[key]) map[key] = { key, total: 0, count: 0 };
+    map[key].total += num(valueFn(row));
+    map[key].count += 1;
+  });
+  return Object.values(map).sort((a,b)=>num(b.total)-num(a.total) || a.key.localeCompare(b.key));
+}
+function renderPerformanceCommercialTables(){
+  const invoiceRows = aggregateBy(filteredInvoices(state.filters.period), r => normalizeCostCenterName(r.CostCenter), r => r.Amount);
+  buildTable($('performanceInvoicesByCostCenterTable'), [
+    {label:'Cost Center'},
+    {label:'Total Invoices', class:'right'},
+    {label:'Transactions', class:'right'}
+  ], invoiceRows.map(r => [escapeHtml(r.key), money(r.total), String(r.count)]));
+
+  const paymentByCostCenterRows = aggregateBy(filteredPayments(state.filters.period), r => normalizeCostCenterName(r.CostCenter), r => r.AmountPaid || r.Amount);
+  buildTable($('performancePaymentsByCostCenterTable'), [
+    {label:'Cost Center'},
+    {label:'Payments Received', class:'right'},
+    {label:'Transactions', class:'right'}
+  ], paymentByCostCenterRows.map(r => [escapeHtml(r.key), money(r.total), String(r.count)]));
+
+  const paymentByManagerRows = aggregateBy(filteredPayments(state.filters.period), r => text(r.ProjectManager || r.Manager), r => r.AmountPaid || r.Amount);
+  buildTable($('performancePaymentsByManagerTable'), [
+    {label:'Manager'},
+    {label:'Payments Received', class:'right'},
+    {label:'Transactions', class:'right'}
+  ], paymentByManagerRows.map(r => [escapeHtml(r.key), money(r.total), String(r.count)]));
+}
+
 function renderPerformanceSection(){
   const rows = managerPerformanceSectionRows(state.filters.period);
   buildTable($('performanceManagerTable'), [
@@ -1444,6 +1486,7 @@ function renderPerformanceSection(){
   ].map(([a,b,c])=>`<div class="kpi"><div class="label">${a}</div><div class="value">${b}</div><div class="sub">${c}</div></div>`).join('');
   renderPerformanceSectionCharts(rows);
   renderCostCenterPerformance();
+  renderPerformanceCommercialTables();
 }
 function renderPerformanceSectionCharts(rows){
   if (typeof Chart === 'undefined' || !($('performancePanel') && $('performancePanel').classList.contains('active'))) {
@@ -2975,7 +3018,7 @@ async function loadData(){
   }
 }
 /* === End patched formulas === */
-function init(){ state.currentUser = null; try { localStorage.removeItem(USER_SESSION_KEY); } catch(e){} bindTabs(); wireFilters(); wireProjectAdders(); wireExecutiveExports(); startDashboardClock(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('savePaymentBtn').onclick = savePaymentReceived; if ($('loginBtn')) $('loginBtn').onclick = handleLogin; if ($('registerBtn')) $('registerBtn').onclick = handleRegisterButton; if ($('logoutBtn')) $('logoutBtn').onclick = logoutUser; if ($('loginPassword')) $('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); if ($('loginUsername')) $('loginUsername').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); ['registerName','registerUsername','registerPassword','registerConfirmPassword'].forEach(id => { if ($(id)) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') registerUser(); }); }); $('revDate').value = $('projCreatedAt').value = $('invDate').value = $('payDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); if ($('revProjectName')) $('revProjectName').addEventListener('change', applyRememberedRevenueBudgets); if ($('revManager')) $('revManager').addEventListener('change', applyRememberedRevenueBudgets); if ($('revCostCenter')) $('revCostCenter').addEventListener('change', applyRememberedRevenueBudgets); $('diagnostics').textContent = 'Waiting for first load...'; applyRolePermissions(); setRegisterButtonState(); $('loginOverlay').classList.remove('login-hidden'); }
+function init(){ state.currentUser = null; try { localStorage.removeItem(USER_SESSION_KEY); } catch(e){} bindTabs(); wireFilters(); wireProjectAdders(); wireExecutiveExports(); startDashboardClock(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('savePaymentBtn').onclick = savePaymentReceived; if ($('loginBtn')) $('loginBtn').onclick = handleLogin; if ($('registerBtn')) $('registerBtn').onclick = handleRegisterButton; if ($('logoutBtn')) $('logoutBtn').onclick = logoutUser; if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').onclick = logoutUser; if ($('loginPassword')) $('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); if ($('loginUsername')) $('loginUsername').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); ['registerName','registerUsername','registerPassword','registerConfirmPassword'].forEach(id => { if ($(id)) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') registerUser(); }); }); $('revDate').value = $('projCreatedAt').value = $('invDate').value = $('payDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); if ($('revProjectName')) $('revProjectName').addEventListener('change', applyRememberedRevenueBudgets); if ($('revManager')) $('revManager').addEventListener('change', applyRememberedRevenueBudgets); if ($('revCostCenter')) $('revCostCenter').addEventListener('change', applyRememberedRevenueBudgets); $('diagnostics').textContent = 'Waiting for first load...'; applyRolePermissions(); setRegisterButtonState(); $('loginOverlay').classList.remove('login-hidden'); if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').classList.add('login-hidden'); }
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
