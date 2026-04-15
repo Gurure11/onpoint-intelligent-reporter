@@ -2761,23 +2761,39 @@ function updateDashboardClock(){ const el = $('dashboardClockTime'); if (!el) re
 function startDashboardClock(){ updateDashboardClock(); if (window.dashboardClockTimer) clearInterval(window.dashboardClockTimer); window.dashboardClockTimer = setInterval(updateDashboardClock, 1000); }
 
 function renderKPIs(){
-  const monthRows = revenueRowsForPeriod('Monthly');
-  const yearRows = revenueRowsForPeriod('Yearly');
-  const selectedRows = revenueRowsForPeriod(state.filters.period);
-  const selectedBudgetRows = filteredBudgetRows(state.filters.period);
-  const mtd = monthRows.reduce((s,r)=>s + revenueActualValue(r), 0);
-  const ytd = yearRows.reduce((s,r)=>s + revenueActualValue(r), 0);
-  const actual = selectedRows.reduce((s,r)=>s + revenueActualValue(r), 0);
-  const projected = selectedBudgetRows.reduce((s,r)=>s + monthlyBudgetToPeriod(num(r.MonthlyProjectedBudget), state.filters.period, r.Date), 0);
-  const straightline = selectedBudgetRows.reduce((s,r)=>s + monthlyBudgetToPeriod(num(r.MonthlyStraightlineBudget), state.filters.period, r.Date), 0);
-  const selectedMetricLabel = selectedPeriodMetricLabel(state.filters.period) || 'MTD';
+  const revenueRows = revenueRowsForPeriod(state.filters.period);
+  const yearlyRows = revenueRowsForPeriod('Yearly');
+  let confirmed;
+  let forecast;
+  if (state.filters.division === OVERRIDE_COST_CENTER) {
+    confirmed = ONPOINT_OVERRIDE_TOTAL_CONFIRMED;
+    forecast = revenueRows.reduce((s,r)=>s+num(r.Forecast),0);
+  } else if (state.filters.division === AQUA_OVERRIDE_COST_CENTER) {
+    confirmed = AQUA_OVERRIDE_TOTAL_CONFIRMED;
+    forecast = AQUA_OVERRIDE_TOTAL_FORECAST;
+  } else if (state.filters.division === 'All' && state.filters.manager === 'All' && !state.filters.search) {
+    confirmed = GROUP_OVERRIDE_TOTAL_CONFIRMED;
+    forecast = GROUP_OVERRIDE_TOTAL_FORECAST;
+  } else {
+    confirmed = revenueRows.reduce((s,r)=>s+num(r.Confirmed),0);
+    forecast = revenueRows.reduce((s,r)=>s+num(r.Forecast),0);
+  }
+  const totalOrders = confirmed + forecast;
+  const selectedPeriodActual = revenueRows.reduce((s,r)=>s+revenueActualValue(r),0);
+  const monthlyRows = revenueRowsForPeriod('Monthly');
+  const mtd = monthlyRows.reduce((s,r)=>s+revenueActualValue(r),0);
+  const ytd = yearlyRows.reduce((s,r)=>s+revenueActualValue(r),0);
+  const btye = Math.max(0, confirmed - ytd);
+  const selectedMetricLabel = state.filters.period === 'Monthly'
+    ? 'Selected Period Actual'
+    : (selectedPeriodMetricLabel(state.filters.period) || 'Selected Period Actual');
   $('headlineKpis').innerHTML = [
-    ['Projected Budget', money(projected), `${state.filters.period} / Budgets`],
-    ['Straightline Budget', money(straightline), `${state.filters.period} / Budgets`],
-    ['Actual', money(actual), `${state.filters.period} / Daily Revenue`],
+    ['Total Confirmed', money(confirmed), `${state.filters.period} / Manager Dashboard`],
+    ['Total Forecast', money(forecast), `${state.filters.period} / Manager Dashboard`],
+    ['Total Orders', money(totalOrders), `${state.filters.period} / Manager Dashboard`],
     ['MTD', money(mtd), 'Manager Dashboard / Daily Revenue'],
     ['Group YTD', money(ytd), 'Manager Dashboard / Daily Revenue'],
-    [selectedMetricLabel, money(actual), 'Selected period total daily revenue']
+    [selectedMetricLabel, money(selectedPeriodActual), 'Selected period total daily revenue']
   ].map(([a,b,c])=>`<div class="kpi"><div class="label">${a}</div><div class="value">${b}</div><div class="sub">${c}</div></div>`).join('');
 }
 async function loadData(){
