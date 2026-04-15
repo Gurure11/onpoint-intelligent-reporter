@@ -360,8 +360,8 @@
   </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5kwpiQ55foLLLecMC56HxDEI46jEVKushjuMcStG8lKU4TOqda6rXTiHJqUv1CV8U/exec';
-const REVENUE_SAVE_URL = 'https://script.google.com/macros/s/AKfycbw5kwpiQ55foLLLecMC56HxDEI46jEVKushjuMcStG8lKU4TOqda6rXTiHJqUv1CV8U/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLhxhC6rQheehfH9JDJrMUF4p6179uSd73mWrJ4mLd3aAAGtOwD0Kk9WE2u19v_XNL/exec';
+const REVENUE_SAVE_URL = 'https://script.google.com/macros/s/AKfycbzLhxhC6rQheehfH9JDJrMUF4p6179uSd73mWrJ4mLd3aAAGtOwD0Kk9WE2u19v_XNL/exec';
 const PERIODS = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
 const EXECUTIVE_AVG_GROSS_MARGIN_PCT = 31.66;
 const EXECUTIVE_PIE_COLORS = ['#0f172a','#1d4ed8','#15803d','#b45309','#b91c1c','#7c3aed','#0891b2','#ea580c','#16a34a','#be185d'];
@@ -2213,9 +2213,52 @@ async function saveRevenue(){
   const dayCount = Math.max(daysInMonth(date), 1);
   const dailyStraightlineBudget = monthlyStraightlineBudget ? (monthlyStraightlineBudget / dayCount) : 0;
   const meta = managerDashboardRevenueMeta(manager, costCenter, projectName);
+  const createdAt = date;
+  const timestamp = new Date().toISOString();
+  const qualityValue = canSetQuality() ? num($('revQuality').value) : num($('revQuality').value || 0);
+  const safetyValue = num($('revSafety').value);
+  const approvalStatus = 'Pending Approval';
+  const managerComment = isAdminManager() ? text($('revManagerSafetyComment').value) : '';
+  const safetyManagerComment = isSafetyManager() ? text($('revManagerSafetyComment').value) : '';
+  const combinedComment = combinedRevenueComments();
+  const reason = composeRevenueReasonText();
 
-  const payload = {
+  const exactHeaderPayload = {
     action:'addRevenue',
+    targetSpreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
+    spreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
+    workbookName:'Manager Dashboard',
+    sheetName:'Manager Dashboard',
+    tabName:'Manager Dashboard',
+    targetTab:'Manager Dashboard',
+    headerMode:'append_by_header',
+    orderedHeaders:['Date','Cost Center','Category','Project Manager','Project Name','Monthly Projected Budget','Monthly Straightline Budget','Daily Projected Budget','Daily Straightline Budget','Daily Revenue','Quality','Safety','CreatedAt','Timestamp','Approval Status','Status','Posted By','Manager Comment','Safety Manager Comment','Comment','Reason','Invoices Issued','Payments Received','Confirmed','Forecast'],
+    headersBeforeDailyRevenue:['Date','Cost Center','Category','Project Manager','Project Name','Monthly Projected Budget','Monthly Straightline Budget','Daily Projected Budget','Daily Straightline Budget'],
+    Date: date,
+    'Cost Center': costCenter,
+    Category:'Daily Revenue',
+    'Project Manager': manager,
+    'Project Name': projectName,
+    'Monthly Projected Budget': monthlyProjectedBudget,
+    'Monthly Straightline Budget': monthlyStraightlineBudget,
+    'Daily Projected Budget': dailyProjectedBudget,
+    'Daily Straightline Budget': dailyStraightlineBudget,
+    'Daily Revenue': dailyRevenue,
+    Quality: qualityValue,
+    Safety: safetyValue,
+    CreatedAt: createdAt,
+    Timestamp: timestamp,
+    'Approval Status': approvalStatus,
+    Status: approvalStatus,
+    'Posted By': currentUserName(),
+    'Manager Comment': managerComment,
+    'Safety Manager Comment': safetyManagerComment,
+    Comment: combinedComment,
+    Reason: reason,
+    'Invoices Issued': 0,
+    'Payments Received': 0,
+    Confirmed: meta.confirmed,
+    Forecast: meta.forecast,
     date,
     costCenter,
     category:'Daily Revenue',
@@ -2226,30 +2269,44 @@ async function saveRevenue(){
     dailyProjectedBudget,
     dailyStraightlineBudget,
     dailyRevenue,
+    quality: qualityValue,
+    safety: safetyValue,
+    createdAt,
+    timestamp,
+    approvalStatus,
+    status: approvalStatus,
+    postedBy: currentUserName(),
+    managerComment,
+    safetyManagerComment,
+    comment: combinedComment,
+    reason,
     invoicesIssued: 0,
     paymentsReceived: 0,
     confirmed: meta.confirmed,
-    forecast: meta.forecast,
-    quality: canSetQuality() ? num($('revQuality').value) : '',
-    safety: num($('revSafety').value),
-    approvalStatus: 'Pending Approval',
-    status: 'Pending Approval',
-    postedBy: currentUserName(),
-    managerComment: isAdminManager() ? text($('revManagerSafetyComment').value) : '',
-    safetyManagerComment: isSafetyManager() ? text($('revManagerSafetyComment').value) : '',
-    comment: combinedRevenueComments(),
-    reason: composeRevenueReasonText()
+    forecast: meta.forecast
   };
   saveRevenueBudgetsForProject(projectName, monthlyProjectedBudget, dailyProjectedBudget);
 
-  if (!payload.date || !payload.manager || !payload.costCenter || !payload.projectName || payload.dailyRevenue <= 0) {
+  if (!date || !manager || !costCenter || !projectName || dailyRevenue <= 0) {
     return alert('Complete the revenue fields first.');
   }
 
   const btn=$('saveRevenueBtn'); const old=btn.textContent;
   btn.textContent='⟳ Synchronising.'; btn.classList.add('btn-loading');
   try {
-    const res = await postJsonToUrl(REVENUE_SAVE_URL, payload);
+    let res = null;
+    const actionVariants = ['addRevenue','saveRevenue','addRevenueToManagerDashboard'];
+    let lastError = null;
+    for (const actionName of actionVariants) {
+      try {
+        res = await postJsonToUrl(REVENUE_SAVE_URL, Object.assign({}, exactHeaderPayload, { action: actionName }));
+        lastError = null;
+        break;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    if (lastError) throw lastError;
     await loadData();
     $('revAmount').value=''; $('revQuality').value='80'; $('revSafety').value='0';
     renderSummary();
