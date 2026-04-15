@@ -360,8 +360,8 @@
   </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5kwpiQ55foLLLecMC56HxDEI46jEVKushjuMcStG8lKU4TOqda6rXTiHJqUv1CV8U/exec';
-const REVENUE_SAVE_URL = 'https://script.google.com/macros/s/AKfycbw5kwpiQ55foLLLecMC56HxDEI46jEVKushjuMcStG8lKU4TOqda6rXTiHJqUv1CV8U/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_-wtGKzlJoazKAEBrebmly4KNHpCTb2YbdAjNnL0sgBCJ7h-Xkxr0F3h-CLh7iVtO/exec';
+const REVENUE_SAVE_URL = 'https://script.google.com/macros/s/AKfycbx_-wtGKzlJoazKAEBrebmly4KNHpCTb2YbdAjNnL0sgBCJ7h-Xkxr0F3h-CLh7iVtO/exec';
 const PERIODS = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
 const EXECUTIVE_AVG_GROSS_MARGIN_PCT = 31.66;
 const EXECUTIVE_PIE_COLORS = ['#0f172a','#1d4ed8','#15803d','#b45309','#b91c1c','#7c3aed','#0891b2','#ea580c','#16a34a','#be185d'];
@@ -2080,12 +2080,12 @@ function mapProjectRow(r){
   });
 }
 
-function mapInvoiceRow(r){ return { Date: normaliseDate(rowVal(r,0) || r.Date || r.date), Manager: text(r.Manager || r.manager || rowVal(r,1)), ProjectName: text(r.ProjectName || r.projectName || rowVal(r,2)), InvoiceNumber: text(r.InvoiceNumber || r.invoiceNumber || r['Invoice No'] || rowVal(r,3)), Amount: num(r.Amount || r.amount || rowVal(r,4)), PaymentReceived: String(r.PaymentReceived || r.paymentReceived || rowVal(r,5)).toLowerCase()==='true' || r.PaymentReceived===true, PaymentDate: normaliseDate(r.PaymentDate || r.paymentDate || rowVal(r,6)), CostCenter: normalizeCostCenterName(r.CostCenter || r.costCenter || r.Division || rowVal(r,7)), Notes: text(r.Notes || r.notes || rowVal(r,8)) }; }
+function mapInvoiceRow(r){ return { Date: normaliseDate(r.Date || r.date || rowVal(r,0)), Manager: text(r.Manager || r.manager || rowVal(r,1)), ProjectName: text(r.ProjectName || r.projectName || rowVal(r,2)), InvoiceNumber: text(r.InvoiceNumber || r.invoiceNumber || r['Invoice No'] || rowVal(r,3)), Amount: num(r.Amount || r.amount || rowVal(r,4)), PaymentReceived: String(r.PaymentReceived || r.paymentReceived || rowVal(r,5)).toLowerCase()==='true' || r.PaymentReceived===true, PaymentDate: normaliseDate(r.PaymentDate || r.paymentDate || rowVal(r,6)), CostCenter: normalizeCostCenterName(r.CostCenter || r.costCenter || r.Division || rowVal(r,7)), Notes: text(r.Notes || r.notes || rowVal(r,8)) }; }
 function mapPaymentRow(r){
   const idx0 = rowVal(r,0), idx1 = rowVal(r,1), idx2 = rowVal(r,2), idx3 = rowVal(r,3), idx4 = rowVal(r,4), idx5 = rowVal(r,5), idx6 = rowVal(r,6), idx7 = rowVal(r,7), idx8 = rowVal(r,8), idx9 = rowVal(r,9), idx10 = rowVal(r,10), idx11 = rowVal(r,11);
   const looksLikeShiftedSheetOrder = isKnownCostCenterLike(idx1) && !isKnownCostCenterLike(idx6);
   return {
-    Date: normaliseDate(idx0 || r.Date || r.date),
+    Date: normaliseDate(r.Date || r.date || idx0),
     CostCenter: normalizeCostCenterName(r.CostCenter || r.costCenter || r['CostCenter'] || r['Cost Center'] || r.Division || (looksLikeShiftedSheetOrder ? idx1 : idx6)),
     ProjectManager: text(r.ProjectManager || r.projectManager || r['Project Manager'] || r.Manager || r.manager || (looksLikeShiftedSheetOrder ? idx2 : idx2)),
     ProjectName: text(r.ProjectName || r.projectName || r['Project Name'] || (looksLikeShiftedSheetOrder ? idx3 : idx1)),
