@@ -360,8 +360,8 @@
   </div>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLhxhC6rQheehfH9JDJrMUF4p6179uSd73mWrJ4mLd3aAAGtOwD0Kk9WE2u19v_XNL/exec';
-const REVENUE_SAVE_URL = 'https://script.google.com/macros/s/AKfycbzLhxhC6rQheehfH9JDJrMUF4p6179uSd73mWrJ4mLd3aAAGtOwD0Kk9WE2u19v_XNL/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5kwpiQ55foLLLecMC56HxDEI46jEVKushjuMcStG8lKU4TOqda6rXTiHJqUv1CV8U/exec';
+const REVENUE_SAVE_URL = 'https://script.google.com/macros/s/AKfycbw5kwpiQ55foLLLecMC56HxDEI46jEVKushjuMcStG8lKU4TOqda6rXTiHJqUv1CV8U/exec';
 const PERIODS = ['Daily','Weekly','Monthly','Quarterly','Yearly'];
 const EXECUTIVE_AVG_GROSS_MARGIN_PCT = 31.66;
 const EXECUTIVE_PIE_COLORS = ['#0f172a','#1d4ed8','#15803d','#b45309','#b91c1c','#7c3aed','#0891b2','#ea580c','#16a34a','#be185d'];
@@ -2080,12 +2080,12 @@ function mapProjectRow(r){
   });
 }
 
-function mapInvoiceRow(r){ return { Date: normaliseDate(r.Date || r.date || rowVal(r,0)), Manager: text(r.Manager || r.manager || rowVal(r,1)), ProjectName: text(r.ProjectName || r.projectName || rowVal(r,2)), InvoiceNumber: text(r.InvoiceNumber || r.invoiceNumber || r['Invoice No'] || rowVal(r,3)), Amount: num(r.Amount || r.amount || rowVal(r,4)), PaymentReceived: String(r.PaymentReceived || r.paymentReceived || rowVal(r,5)).toLowerCase()==='true' || r.PaymentReceived===true, PaymentDate: normaliseDate(r.PaymentDate || r.paymentDate || rowVal(r,6)), CostCenter: normalizeCostCenterName(r.CostCenter || r.costCenter || r.Division || rowVal(r,7)), Notes: text(r.Notes || r.notes || rowVal(r,8)) }; }
+function mapInvoiceRow(r){ return { Date: normaliseDate(rowVal(r,0) || r.Date || r.date), Manager: text(r.Manager || r.manager || rowVal(r,1)), ProjectName: text(r.ProjectName || r.projectName || rowVal(r,2)), InvoiceNumber: text(r.InvoiceNumber || r.invoiceNumber || r['Invoice No'] || rowVal(r,3)), Amount: num(r.Amount || r.amount || rowVal(r,4)), PaymentReceived: String(r.PaymentReceived || r.paymentReceived || rowVal(r,5)).toLowerCase()==='true' || r.PaymentReceived===true, PaymentDate: normaliseDate(r.PaymentDate || r.paymentDate || rowVal(r,6)), CostCenter: normalizeCostCenterName(r.CostCenter || r.costCenter || r.Division || rowVal(r,7)), Notes: text(r.Notes || r.notes || rowVal(r,8)) }; }
 function mapPaymentRow(r){
   const idx0 = rowVal(r,0), idx1 = rowVal(r,1), idx2 = rowVal(r,2), idx3 = rowVal(r,3), idx4 = rowVal(r,4), idx5 = rowVal(r,5), idx6 = rowVal(r,6), idx7 = rowVal(r,7), idx8 = rowVal(r,8), idx9 = rowVal(r,9), idx10 = rowVal(r,10), idx11 = rowVal(r,11);
   const looksLikeShiftedSheetOrder = isKnownCostCenterLike(idx1) && !isKnownCostCenterLike(idx6);
   return {
-    Date: normaliseDate(r.Date || r.date || idx0),
+    Date: normaliseDate(idx0 || r.Date || r.date),
     CostCenter: normalizeCostCenterName(r.CostCenter || r.costCenter || r['CostCenter'] || r['Cost Center'] || r.Division || (looksLikeShiftedSheetOrder ? idx1 : idx6)),
     ProjectManager: text(r.ProjectManager || r.projectManager || r['Project Manager'] || r.Manager || r.manager || (looksLikeShiftedSheetOrder ? idx2 : idx2)),
     ProjectName: text(r.ProjectName || r.projectName || r['Project Name'] || (looksLikeShiftedSheetOrder ? idx3 : idx1)),
@@ -2329,8 +2329,11 @@ async function saveInvoice(){
   const projectName = $('invProjectName').value;
   const costCenter = $('invCostCenter').value;
   const amount = num($('invAmount').value);
-  const payload = {
-    action:'addInvoiceToManagerDashboard',
+  const invoiceNumber = text($('invNumber').value);
+  const notes = text($('invNotes').value);
+  const postedBy = currentUserName();
+  const timestamp = new Date().toISOString();
+  const exactHeaderPayload = {
     targetSpreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
     spreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
     workbookName:'Manager Dashboard',
@@ -2341,19 +2344,46 @@ async function saveInvoice(){
     date,
     manager,
     projectName,
-    invoiceNumber:$('invNumber').value,
+    invoiceNumber,
     amount,
     paymentReceived:false,
     paymentDate:'',
     costCenter,
-    notes:$('invNotes').value,
-    postedBy: currentUserName()
+    notes,
+    createdAt: date,
+    timestamp,
+    postedBy,
+    Date: date,
+    Manager: manager,
+    ProjectName: projectName,
+    InvoiceNumber: invoiceNumber,
+    Amount: amount,
+    PaymentReceived: false,
+    PaymentDate: '',
+    CostCenter: costCenter,
+    Notes: notes,
+    CreatedAt: date,
+    Timestamp: timestamp,
+    PostedBy: postedBy,
+    EntryType: 'Invoice'
   };
-  if (!payload.projectName || !payload.manager || !payload.costCenter || payload.amount <= 0) return alert('Complete the invoice fields first.');
+  if (!projectName || !manager || !costCenter || amount <= 0 || !invoiceNumber) return alert('Complete the invoice fields first.');
   const btn=$('saveInvoiceBtn'); const old=btn.textContent;
   btn.textContent='⟳ Synchronising...'; btn.classList.add('btn-loading');
   try {
-    const res = await postJsonToUrl(REVENUE_SAVE_URL, payload);
+    let res = null;
+    const actionVariants = ['addInvoiceToManagerDashboard','addInvoice','saveInvoice'];
+    let lastError = null;
+    for (const actionName of actionVariants) {
+      try {
+        res = await postJsonToUrl(REVENUE_SAVE_URL, Object.assign({}, exactHeaderPayload, { action: actionName }));
+        lastError = null;
+        break;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    if (lastError) throw lastError;
     await loadData();
     $('invNumber').value=''; $('invAmount').value=''; $('invNotes').value='';
     showToast(res.message || 'Invoice has been saved to Manager Dashboard / Invoices tab','success');
@@ -2372,16 +2402,17 @@ async function savePaymentReceived(){
   const date = $('payDate').value || todayISO();
   const projectName = $('payProjectName').value;
   const manager = $('payManager').value;
-  const invoiceNumber = $('payInvoiceNumber').value;
+  const invoiceNumber = text($('payInvoiceNumber').value);
   const amountPaid = num($('payAmount').value);
   const balanceOutstanding = num($('payBalanceOutstanding') ? $('payBalanceOutstanding').value : 0);
   const costCenter = ($('payCostCenter') && $('payCostCenter').value) || state.projects.find(p => text(p.ProjectName)===projectName && text(p.Manager)===manager)?.Division
     || state.revenue.find(r => text(r.ProjectName)===projectName && text(r.Manager)===manager)?.CostCenter
     || state.revenue.find(r => text(r.ProjectName)===projectName)?.CostCenter
     || '';
-  const notes = $('payNotes') ? $('payNotes').value : '';
-  const payload = {
-    action:'addPaymentReceivedToManagerDashboard',
+  const notes = $('payNotes') ? text($('payNotes').value) : '';
+  const postedBy = currentUserName();
+  const timestamp = new Date().toISOString();
+  const exactHeaderPayload = {
     targetSpreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
     spreadsheetId:'1DqbP3DmLjTLWuLY6I4X_Xkpg30IkfPSqNVcbU_5WrEE',
     workbookName:'Manager Dashboard',
@@ -2401,13 +2432,42 @@ async function savePaymentReceived(){
     paymentDate: date,
     costCenter,
     notes,
-    postedBy: currentUserName()
+    timestamp,
+    postedBy,
+    Date: date,
+    ProjectName: projectName,
+    'Project Name': projectName,
+    ProjectManager: manager,
+    'Project Manager': manager,
+    InvoiceNumber: invoiceNumber,
+    'Invoice Number': invoiceNumber,
+    AmountPaid: amountPaid,
+    'Amount Paid': amountPaid,
+    BalanceOutstanding: balanceOutstanding,
+    'Balance Outstanding': balanceOutstanding,
+    CostCenter: costCenter,
+    Notes: notes,
+    Timestamp: timestamp,
+    PostedBy: postedBy,
+    EntryType: 'Payment Received'
   };
-  if (!payload.date || !payload.projectName || !payload.manager || !payload.invoiceNumber || payload.amountPaid <= 0) return alert('Complete the payment received fields first.');
+  if (!date || !projectName || !manager || !invoiceNumber || amountPaid <= 0) return alert('Complete the payment received fields first.');
   const btn=$('savePaymentBtn'); const old=btn.textContent;
   btn.textContent='⟳ Synchronising...'; btn.classList.add('btn-loading');
   try {
-    const res = await postJsonToUrl(REVENUE_SAVE_URL, payload);
+    let res = null;
+    const actionVariants = ['addPaymentReceivedToManagerDashboard','addPaymentReceived','savePaymentReceived','addPayment'];
+    let lastError = null;
+    for (const actionName of actionVariants) {
+      try {
+        res = await postJsonToUrl(REVENUE_SAVE_URL, Object.assign({}, exactHeaderPayload, { action: actionName }));
+        lastError = null;
+        break;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    if (lastError) throw lastError;
     await loadData();
     $('payInvoiceNumber').value=''; $('payAmount').value=''; if ($('payBalanceOutstanding')) $('payBalanceOutstanding').value=''; if ($('payNotes')) $('payNotes').value='';
     showToast(res.message || 'Payment received has been saved to Manager Dashboard / Payments tab','success');
