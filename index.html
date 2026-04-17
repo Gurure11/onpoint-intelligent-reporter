@@ -3017,6 +3017,193 @@ async function loadData(){
     testBtn.classList.remove('btn-loading'); refreshBtn.classList.remove('btn-loading');
   }
 }
+
+const NKANYEZI_OVERRIDE_COST_CENTER = 'Nkanyezi';
+const NKANYEZI_OVERRIDE_TOTAL_CONFIRMED = 12700000;
+const NKANYEZI_OVERRIDE_TOTAL_FORECAST = 19900000;
+const LOCAL_REVENUE_ROW_MUTATIONS_KEY = 'onpoint_dashboard_revenue_row_mutations_v1';
+function getLocalRevenueRowMutationStore(){ try { const raw = JSON.parse(localStorage.getItem(LOCAL_REVENUE_ROW_MUTATIONS_KEY) || '{}'); return raw && typeof raw === 'object' ? raw : {}; } catch(e){ return {}; } }
+function setLocalRevenueRowMutationStore(store){ try { localStorage.setItem(LOCAL_REVENUE_ROW_MUTATIONS_KEY, JSON.stringify(store || {})); } catch(e){} }
+function revenueRowKey(entry){ return String(entry?.RowId || entry?.ID || entry?.Timestamp || entry?.CreatedAt || `${entry?.Date || ''}|${entry?.ProjectName || ''}|${entry?.Manager || ''}`); }
+function saveLocalRevenueRowMutation(entry, patch){ const store = getLocalRevenueRowMutationStore(); const key = revenueRowKey(entry); store[key] = Object.assign({}, store[key] || {}, patch || {}, { savedAt: new Date().toISOString() }); setLocalRevenueRowMutationStore(store); }
+function removeLocalRevenueRowMutation(entry){ const store = getLocalRevenueRowMutationStore(); delete store[revenueRowKey(entry)]; setLocalRevenueRowMutationStore(store); }
+function applyLocalRevenueRowMutation(entry){ const store = getLocalRevenueRowMutationStore(); const local = store[revenueRowKey(entry)]; if (!local) return entry; if (local.deleted) return null; return Object.assign({}, entry, {
+  Date: local.Date ?? entry.Date,
+  Manager: local.Manager ?? entry.Manager,
+  CostCenter: local.CostCenter ?? entry.CostCenter,
+  ProjectName: local.ProjectName ?? entry.ProjectName,
+  Actual: local.Actual ?? entry.Actual,
+  Actuals: local.Actual ?? entry.Actuals,
+  Amount: local.Actual ?? entry.Amount,
+  Budget: local.Budget ?? entry.Budget,
+  DailyBudget: local.DailyBudget ?? entry.DailyBudget,
+  Quality: local.Quality ?? entry.Quality,
+  PostedBy: local.PostedBy ?? entry.PostedBy,
+  ApprovalStatus: local.ApprovalStatus ?? entry.ApprovalStatus,
+  Status: local.Status ?? entry.Status
+}); }
+function visibleRevenueRows(){ return (state.revenue || []).map(applyLocalRevenueApproval).map(applyLocalRevenueRowMutation).filter(Boolean); }
+function revenueRecordDateForPeriod(record){ return firstSheetColumnDate(record) || normaliseDate(record?.Date || record?.date || record?.CreatedAt || record?.createdAt || record?.Timestamp || record?.timestamp || ''); }
+function canModifyRevenueEntry(entry){
+  if (!state.currentUser) return false;
+  if (isAdminManager()) return true;
+  const currentNames = [currentUserName(), text(state.currentUser?.username)].map(lower).filter(Boolean);
+  const postedBy = lower(text(entry?.PostedBy || entry?.PostedByDisplay || ''));
+  return !!postedBy && currentNames.includes(postedBy);
+}
+function canDeleteRevenueEntry(entry){ return canModifyRevenueEntry(entry); }
+function canEditRevenueEntry(entry){ return canModifyRevenueEntry(entry); }
+async function editRevenueEntry(entry){
+  if(!requireRole(() => canEditRevenueEntry(entry), 'Only the user who captured the line or Admin Manager can edit this entry.')) return;
+  const nextDate = text(window.prompt('Edit Date (YYYY-MM-DD)', normaliseDate(entry.Date) || ''));
+  if (!nextDate) return;
+  const nextManager = text(window.prompt('Edit Manager', entry.Manager || ''));
+  if (!nextManager) return;
+  const nextCostCenter = normalizeCostCenterName(window.prompt('Edit Cost Center', entry.CostCenter || '') || '');
+  if (!nextCostCenter) return;
+  const nextProjectName = text(window.prompt('Edit Project Name', entry.ProjectName || ''));
+  if (!nextProjectName) return;
+  const actualRaw = window.prompt('Edit Actuals', String(revenueActualValue(entry)));
+  if (actualRaw === null) return;
+  const budgetRaw = window.prompt('Edit Budget', String(num(entry.Budget)));
+  if (budgetRaw === null) return;
+  const dailyBudgetRaw = window.prompt('Edit Daily Budget', String(num(entry.DailyBudget)));
+  if (dailyBudgetRaw === null) return;
+  const patch = { Date: normaliseDate(nextDate), Manager: nextManager, CostCenter: nextCostCenter, ProjectName: nextProjectName, Actual: num(actualRaw), Budget: num(budgetRaw), DailyBudget: num(dailyBudgetRaw) };
+  const payload = { action:'updateRevenueEntry', targetSpreadsheetId:LOGIN_TAB_SHEET_ID, spreadsheetId:LOGIN_TAB_SHEET_ID, workbookName:'Manager Dashboard', sheetName:'Manager Dashboard', tabName:'Daily Revenue', targetTab:'Daily Revenue', rowId: revenueRowKey(entry), originalDate: entry.Date, originalManager: entry.Manager, originalCostCenter: entry.CostCenter, originalProjectName: entry.ProjectName, date: patch.Date, manager: patch.Manager, costCenter: patch.CostCenter, projectName: patch.ProjectName, actual: patch.Actual, amount: patch.Actual, budget: patch.Budget, dailyBudget: patch.DailyBudget, editedBy: currentUserName() };
+  try { await postAction(payload); saveLocalRevenueRowMutation(entry, patch); showToast('Revenue line updated','success'); await loadData(); }
+  catch(e){ saveLocalRevenueRowMutation(entry, patch); showToast('Revenue line updated locally because Google Sheets update failed.','info'); renderAll(); }
+}
+async function deleteRevenueEntry(entry){
+  if(!requireRole(() => canDeleteRevenueEntry(entry), 'Only the user who captured the line or Admin Manager can delete this entry.')) return;
+  if (!window.confirm(`Delete revenue entry for ${entry.ProjectName || 'this line'} on ${entry.Date || ''}?`)) return;
+  const payload = { action:'deleteRevenueEntry', targetSpreadsheetId:LOGIN_TAB_SHEET_ID, spreadsheetId:LOGIN_TAB_SHEET_ID, workbookName:'Manager Dashboard', sheetName:'Manager Dashboard', tabName:'Daily Revenue', targetTab:'Daily Revenue', rowId: revenueRowKey(entry), date: entry.Date, manager: entry.Manager, costCenter: entry.CostCenter, projectName: entry.ProjectName, deletedBy: currentUserName() };
+  try { await postAction(payload); saveLocalRevenueRowMutation(entry, { deleted:true }); showToast('Revenue line deleted','success'); await loadData(); }
+  catch(e){ saveLocalRevenueRowMutation(entry, { deleted:true }); showToast('Revenue line deleted locally because Google Sheets update failed.','info'); renderAll(); }
+}
+async function saveRevenueQuality(entry){
+  if(!requireRole(canSetQuality, 'Only Safety Manager can save quality %.')) return;
+  const qualityRaw = window.prompt('Enter Quality %', String(num(entry.Quality)));
+  if (qualityRaw === null) return;
+  const quality = Math.max(0, Math.min(100, num(qualityRaw)));
+  const payload = { action:'updateRevenueQuality', targetSpreadsheetId:LOGIN_TAB_SHEET_ID, spreadsheetId:LOGIN_TAB_SHEET_ID, workbookName:'Manager Dashboard', sheetName:'Manager Dashboard', tabName:'Daily Revenue', targetTab:'Daily Revenue', rowId: revenueRowKey(entry), date: entry.Date, manager: entry.Manager, costCenter: entry.CostCenter, projectName: entry.ProjectName, quality, updatedBy: currentUserName() };
+  try { await postAction(payload); saveLocalRevenueRowMutation(entry, { Quality: quality }); showToast('Quality updated','success'); await loadData(); }
+  catch(e){ saveLocalRevenueRowMutation(entry, { Quality: quality }); showToast('Quality updated locally because Google Sheets update failed.','info'); renderAll(); }
+}
+function financePeriodDateSet(rows){
+  const set = new Set();
+  (rows || []).forEach(r => {
+    const d = revenueRecordDateForPeriod(r);
+    if (d) set.add(d);
+  });
+  return set;
+}
+function performanceSnapshot(period){
+  const revenueRows = visibleRevenueRows().filter(r => {
+    const periodDate = revenueRecordDateForPeriod(r);
+    if (!inPeriod(periodDate, period)) return false;
+    if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false;
+    if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false;
+    if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false;
+    if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false;
+    return true;
+  });
+  const invoiceRows = filteredInvoices(period);
+  const paymentRows = filteredPayments(period);
+  const actual = revenueRows.reduce((s,r)=>s+revenueActualValue(r),0);
+  const costCenterRows = costCenterPeriodRows(period);
+  const projected = useGroupFixedBudgetOverride() ? groupProjectedTarget(period) : costCenterRows.reduce((s,r)=>s+num(r.Projected),0);
+  const straight = useGroupFixedBudgetOverride() ? groupStraightlineTarget(period) : costCenterRows.reduce((s,r)=>s+num(r.Straightline),0);
+  const grossProfit = revenueRows.reduce((s,r)=>s + (revenueActualValue(r) * revenueMarginValue(r) / 100), 0);
+  const profitability = actual ? Math.round((grossProfit / actual) * 100) : 0;
+  const invoicesIssued = invoiceRows.reduce((s,r)=>s+num(r.Amount),0);
+  const paymentsReceived = paymentRows.reduce((s,r)=>s+num(r.AmountPaid || r.Amount),0);
+  return { revenueRows, invoiceRows, paymentRows, straightRows: [], actual, projected, straight, grossProfit, profitability, invoicesIssued, paymentsReceived, dateSet: financePeriodDateSet(revenueRows), actualVsProjectedPct: projected ? Math.round((actual/projected)*100) : 0, actualVsStraightPct: straight ? Math.round((actual/straight)*100) : 0 };
+}
+function financeCardHtml(label, snap){ return `<div class="exec-card"><h4>${escapeHtml(label)}</h4><div class="exec-lines"><div class="rowline"><span>Invoices issued</span><strong>${money(snap.invoicesIssued)}</strong></div><div class="rowline"><span>Payments received</span><strong>${money(snap.paymentsReceived)}</strong></div><div class="rowline"><span>Gross profit</span><strong>${money(snap.grossProfit)}</strong></div><div class="rowline"><span>Profitability</span><span class="badge ${perfBadgeClass(snap.profitability)}">${snap.profitability}%</span></div><div class="rowline"><span>Gross profit / day</span><strong>${money(label==='Daily' ? snap.grossProfit : (snap.grossProfit / Math.max((snap.dateSet && snap.dateSet.size) ? snap.dateSet.size : 1,1)))}</strong></div></div></div>`; }
+function renderKPIs(){
+  const revenueRows = revenueRowsForPeriod(state.filters.period);
+  const yearlyRows = revenueRowsForPeriod('Yearly');
+  const monthlyRows = revenueRowsForPeriod('Monthly');
+  let confirmed;
+  let forecast;
+  if (state.filters.division === OVERRIDE_COST_CENTER) {
+    confirmed = ONPOINT_OVERRIDE_TOTAL_CONFIRMED;
+    forecast = revenueRows.reduce((s,r)=>s+num(r.Forecast),0);
+  } else if (state.filters.division === AQUA_OVERRIDE_COST_CENTER) {
+    confirmed = AQUA_OVERRIDE_TOTAL_CONFIRMED;
+    forecast = AQUA_OVERRIDE_TOTAL_FORECAST;
+  } else if (state.filters.division === NKANYEZI_OVERRIDE_COST_CENTER) {
+    confirmed = NKANYEZI_OVERRIDE_TOTAL_CONFIRMED;
+    forecast = NKANYEZI_OVERRIDE_TOTAL_FORECAST;
+  } else if (state.filters.division === 'All' && state.filters.manager === 'All' && !state.filters.search) {
+    confirmed = GROUP_OVERRIDE_TOTAL_CONFIRMED;
+    forecast = GROUP_OVERRIDE_TOTAL_FORECAST;
+  } else {
+    confirmed = revenueRows.reduce((s,r)=>s+num(r.Confirmed),0);
+    forecast = revenueRows.reduce((s,r)=>s+num(r.Forecast),0);
+  }
+  const totalOrders = confirmed + forecast;
+  const mtd = monthlyRows.reduce((s,r)=>s+revenueActualValue(r),0);
+  const ytd = yearlyRows.reduce((s,r)=>s+revenueActualValue(r),0);
+  const btye = Math.max(0, confirmed - ytd);
+  $('headlineKpis').innerHTML = [
+    ['Group BTYED', money(btye), 'Confirmed minus YTD'],
+    ['Total Confirmed', money(confirmed), `${state.filters.period} / Manager Dashboard`],
+    ['Total Forecast', money(forecast), `${state.filters.period} / Manager Dashboard`],
+    ['Total Orders', money(totalOrders), `${state.filters.period} / Manager Dashboard`],
+    ['MTD', money(mtd), 'Manager Dashboard / Daily Revenue'],
+    ['Group YTD', money(ytd), 'Manager Dashboard / Daily Revenue']
+  ].map(([a,b,c])=>`<div class="kpi"><div class="label">${a}</div><div class="value">${b}</div><div class="sub">${c}</div></div>`).join('');
+}
+function renderSummary(){
+  renderExecutiveDashboard();
+  renderExecutiveGrossProfit();
+  const savedSnapshot = saveExecutiveHistorySnapshot(false);
+  if ($('historySnapshotSelect') && !$('historySnapshotSelect').dataset.selectedValue) $('historySnapshotSelect').dataset.selectedValue = savedSnapshot.snapshotDate;
+  renderHistorySnapshots();
+  const ccRows = costCenterPeriodRows(state.filters.period);
+  buildTable($('costCenterTable'), [{label:'Cost Center'},{label:'Actual',class:'right'},{label:'Projected',class:'right'},{label:'Straight-line',class:'right'},{label:'Actual vs Projected %',class:'right'},{label:'Actual vs Straight-line %',class:'right'}], ccRows.map(item => {
+    const p = item.Projected ? Math.round((item.Actual/item.Projected)*100) : 0;
+    const s = item.Straightline ? Math.round((item.Actual/item.Straightline)*100) : 0;
+    return [escapeHtml(item.CostCenter), money(item.Actual), money(item.Projected), money(item.Straightline), `${p}%`, `${s}%`];
+  }));
+  const mgr = managerPerformanceRows(state.filters.period).filter(r => num(r.Actual) > 0);
+  buildTable($('managerTable'), [{label:'Manager'},{label:'Actual',class:'right'},{label:'Projected',class:'right'},{label:'Straightline',class:'right'},{label:'Performance',class:'right'}], mgr.sort((a,b)=>{
+    const aPerf = num(a.Projected) > 0 ? num(a.ActualVsProjectedPct) : (num(a.Straightline) > 0 ? num(a.ActualVsStraightPct) : 0);
+    const bPerf = num(b.Projected) > 0 ? num(b.ActualVsProjectedPct) : (num(b.Straightline) > 0 ? num(b.ActualVsStraightPct) : 0);
+    return aPerf - bPerf || a.Manager.localeCompare(b.Manager);
+  }).map(r => {
+    const perf = num(r.Projected) > 0 ? num(r.ActualVsProjectedPct) : (num(r.Straightline) > 0 ? num(r.ActualVsStraightPct) : 0);
+    return [escapeHtml(r.Manager), money(r.Actual), money(r.Projected), money(r.Straightline), `<span class="badge ${perfBadgeClass(perf)}">★ ${Math.round(perf)}%</span>`];
+  }));
+  const rows = filteredRevenue().slice().sort((a,b)=>(a.Date < b.Date ? 1 : -1)).slice(0, 40);
+  buildTable($('revenueTable'), [{label:'Date'},{label:'Manager'},{label:'CostCenter'},{label:'ProjectName'},{label:'Actuals',class:'right'},{label:'Budget',class:'right'},{label:'Daily Budget',class:'right'}], rows.map(r => [escapeHtml(r.Date), escapeHtml(r.Manager), escapeHtml(r.CostCenter), escapeHtml(r.ProjectName), money(revenueActualValue(r)), money(revenueProjectedValue(r,'Monthly')), money(revenueProjectedValue(r,'Daily'))]));
+  const revenueRows = filteredRevenue();
+  const revActual = revenueRows.reduce((s,r)=>s+revenueActualValue(r),0);
+  const revProjected = useGroupFixedBudgetOverride() ? groupProjectedTarget(state.filters.period) : costCenterPeriodRows(state.filters.period).reduce((s,r)=>s+num(r.Projected),0);
+  const profitability = revActual ? Math.round((revenueRows.reduce((s,r)=>s + (revenueActualValue(r) * revenueMarginValue(r) / 100), 0) / revActual) * 100) : 0;
+  $('revenueStats').innerHTML = [
+    ['Actual', money(revActual), `${state.filters.period} / Revenue`],
+    ['Projected', money(revProjected), `${state.filters.period} / Revenue`],
+    ['Rows', String(revenueRows.length), 'Filtered revenue rows'],
+    ['Profitability', `${profitability}%`, 'From project margin']
+  ].map(([a,b,c])=>`<div class="kpi"><div class="label">${a}</div><div class="value">${b}</div><div class="sub">${c}</div></div>`).join('');
+  const dailyRows = visibleRevenueRows().slice().sort((a,b)=>(String(a.Date) < String(b.Date) ? 1 : -1)).slice(0,100);
+  if ($('dailyRevenueTransactionsTable')) buildTable($('dailyRevenueTransactionsTable'), [{label:'Date'},{label:'Manager'},{label:'CostCenter'},{label:'ProjectName'},{label:'Posted By'},{label:'Actuals',class:'right'},{label:'Budget',class:'right'},{label:'Daily Budget',class:'right'},{label:'Quality',class:'right'},{label:'Status'},{label:'Comments'},{label:'Actions'}], dailyRows.map(r => { const rowKey = escapeHtml(revenueRowKey(r)); return [escapeHtml(r.Date), escapeHtml(r.Manager), escapeHtml(r.CostCenter), escapeHtml(r.ProjectName), escapeHtml(r.PostedBy || r.Manager), money(revenueActualValue(r)), money(revenueProjectedValue(r,'Monthly')), money(revenueProjectedValue(r,'Daily')), escapeHtml(r.Quality === '' ? '' : String(r.Quality)), `<span class="badge ${statusBadgeClass(r.ApprovalStatus || r.Status)}">${escapeHtml(normalizeApprovalStatus(r.ApprovalStatus || r.Status))}</span>`, escapeHtml([r.ManagerComment, r.SafetyManagerComment, r.Comment, r.Reason].filter(Boolean).join(' | ')), `<div class="approval-actions">${canApproveRevenue() ? `<button type="button" data-revenue-action="approve" data-row-key="${rowKey}">Approve</button><button type="button" class="secondary" data-revenue-action="warning" data-row-key="${rowKey}">Warning</button>` : ''}${canCommentRevenue() ? `<button type="button" class="secondary" data-revenue-action="comment" data-row-key="${rowKey}">Comment</button>` : ''}${canEditRevenueEntry(r) ? `<button type="button" class="secondary" data-revenue-action="edit" data-row-key="${rowKey}">Edit</button>` : ''}${canDeleteRevenueEntry(r) ? `<button type="button" class="secondary" data-revenue-action="delete" data-row-key="${rowKey}">Delete</button>` : ''}${canSetQuality() ? `<button type="button" class="secondary" data-revenue-action="quality" data-row-key="${rowKey}">Save Quality %</button>` : ''}</div>`]; })); bindRevenueActionButtons();
+  buildTable($('projectsTable'), [{label:'CreatedAt'},{label:'Division'},{label:'Manager'},{label:'ProjectName'},{label:'Status'},{label:'TotalIncome',class:'right'}], filteredProjects().slice(0,100).map(r => [escapeHtml(r.CreatedAt), escapeHtml(r.Division), escapeHtml(r.Manager), escapeHtml(r.ProjectName), escapeHtml(r.Status), money(r.TotalIncome)]));
+  buildTable($('invoicesTable'), [{label:'Date'},{label:'Manager'},{label:'ProjectName'},{label:'InvoiceNumber'},{label:'Amount',class:'right'},{label:'Paid'}], filteredInvoices().slice(0,100).map(r => [escapeHtml(r.Date), escapeHtml(r.Manager), escapeHtml(r.ProjectName), escapeHtml(r.InvoiceNumber), money(r.Amount), escapeHtml(r.PaymentReceived ? 'Yes' : 'No')]));
+  if ($('paymentsJournalTable')) {
+    const paymentRows = filteredPayments().slice().sort((a,b)=> String(b.PaymentDate || b.Date).localeCompare(String(a.PaymentDate || a.Date))).slice(0,100);
+    buildTable($('paymentsJournalTable'), [{label:'Payment Date'},{label:'Cost Center'},{label:'Project Manager'},{label:'Project Name'},{label:'Invoice Number'},{label:'Amount Paid',class:'right'},{label:'Balance Outstanding',class:'right'},{label:'Notes'},{label:'Entry Type'}], paymentRows.map(r => [escapeHtml(r.PaymentDate || r.Date), escapeHtml(r.CostCenter), escapeHtml(r.ProjectManager), escapeHtml(r.ProjectName), escapeHtml(r.InvoiceNumber), money(r.AmountPaid), money(r.BalanceOutstanding), escapeHtml(r.Notes), escapeHtml(r.EntryType || 'Payment Received')]));
+  }
+}
+function bindRevenueActionButtons(){ document.querySelectorAll('[data-revenue-action]').forEach(btn => { btn.onclick = () => { const key = btn.getAttribute('data-row-key'); const entry = visibleRevenueRows().find(r => revenueRowKey(r) === key); if (!entry) return; const action = btn.getAttribute('data-revenue-action'); if (action === 'comment') return addRevenueComment(entry); if (action === 'edit') return editRevenueEntry(entry); if (action === 'delete') return deleteRevenueEntry(entry); if (action === 'quality') return saveRevenueQuality(entry); entry.nextStatus = action === 'approve' ? 'Approved' : 'Warning'; return updateRevenueApproval(entry); }; }); }
+function filteredRevenue(){ return visibleRevenueRows().filter(r => { const periodDate = revenueRecordDateForPeriod(r); if (!inPeriod(periodDate, state.filters.period)) return false; if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false; if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false; if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false; if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false; return true; }); }
+function revenueRowsForPeriod(period = state.filters.period){ return visibleRevenueRows().filter(r => { const periodDate = revenueRecordDateForPeriod(r); if (!inPeriod(periodDate, period)) return false; if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false; if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false; if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false; if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false; return true; }); }
+function chartRevenueRows(period){ return visibleRevenueRows().filter(r => { const periodDate = revenueRecordDateForPeriod(r); if (!inPeriod(periodDate, period)) return false; if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false; if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false; if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false; if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false; return true; }); }
+function renderAll(){ try{ applyRolePermissions(); renderKPIs(); renderProgressCards(); renderSummary(); renderPerformanceSection(); } catch(e){ log('Render error', e.message || e); } }
+
 /* === End patched formulas === */
 function init(){ state.currentUser = null; try { localStorage.removeItem(USER_SESSION_KEY); } catch(e){} bindTabs(); wireFilters(); wireProjectAdders(); wireExecutiveExports(); startDashboardClock(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('savePaymentBtn').onclick = savePaymentReceived; if ($('loginBtn')) $('loginBtn').onclick = handleLogin; if ($('registerBtn')) $('registerBtn').onclick = handleRegisterButton; if ($('logoutBtn')) $('logoutBtn').onclick = logoutUser; if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').onclick = logoutUser; if ($('loginPassword')) $('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); if ($('loginUsername')) $('loginUsername').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); ['registerName','registerUsername','registerPassword','registerConfirmPassword'].forEach(id => { if ($(id)) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') registerUser(); }); }); $('revDate').value = $('projCreatedAt').value = $('invDate').value = $('payDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); if ($('revProjectName')) $('revProjectName').addEventListener('change', applyRememberedRevenueBudgets); if ($('revManager')) $('revManager').addEventListener('change', applyRememberedRevenueBudgets); if ($('revCostCenter')) $('revCostCenter').addEventListener('change', applyRememberedRevenueBudgets); $('diagnostics').textContent = 'Waiting for first load...'; applyRolePermissions(); setRegisterButtonState(); $('loginOverlay').classList.remove('login-hidden'); if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').classList.add('login-hidden'); }
 document.addEventListener('DOMContentLoaded', init);
