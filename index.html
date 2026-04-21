@@ -1662,7 +1662,7 @@ function rawProjectNames(){
     ...state.revenue.map(r => r.ProjectName),
     ...state.orders.map(r => r.ProjectName),
     ...state.straightline.map(r => r.ProjectName)
-  ]);
+  ]).filter(v => lower(v) !== 'timothy');
 }
 function rawManagerNames(){
   return uniqueClean([
@@ -3337,8 +3337,8 @@ function populateFilters(){
   fillProjectFilterTree('projectFilter', groupedProjects, state.filters.project);
 
   const budgetManagers = [...new Set((state.managerBudgets || []).map(r => cleanManagerName(r.ProjectManager || r.Manager)).filter(Boolean))];
-  const allManagers = [...new Set([...rawManagerNames(), ...budgetManagers])]
-    .filter(v => text(v) && !baseProjects.some(p => lower(p) === lower(v)) && !allCostCenters.some(c => lower(c) === lower(v)))
+  const allManagers = [...new Set([...rawManagerNames(), ...budgetManagers, 'Timothy'])]
+    .filter(v => text(v) && (lower(v) === 'timothy' || (!baseProjects.some(p => lower(p) === lower(v)) && !allCostCenters.some(c => lower(c) === lower(v)))) )
     .sort((a,b)=>a.localeCompare(b));
   const managers = ['All', ...allManagers];
   if (!managers.includes(state.filters.manager)) state.filters.manager = 'All';
