@@ -372,7 +372,7 @@ const EXECUTIVE_AVG_GROSS_MARGIN_PCT = 31.66;
 const EXECUTIVE_PIE_COLORS = ['#0f172a','#1d4ed8','#15803d','#b45309','#b91c1c','#7c3aed','#0891b2','#ea580c','#16a34a','#be185d'];
 const DEFAULT_COST_CENTERS = ["Onpoint Ontime", "Aqua Telecoms", "Nkanyezi", "Distinct Hire"];
 const DEFAULT_PROJECT_OPTIONS = ["DBSA Generators", "Temba", "Midvaal", "Coega","Osingisingin", "KZN General Buildings", "Tshwane", "Public Works Limpopo", "Limpopo Eskom Substation Ephraim Mogale", "Naizna", "Cape Town", "COT Streetlights", "COT Electrification", "COT Metering", "", "Msunduzi E50", "Msunduzi Streetlights", "Msunduzi E33", "Msunduzi E47", "Moqhaka Streetlights", "Moqhaka Metering", "Centlec CD11", "Centlec Transformers CD32", "Centlec CD45", "Midvaal Mechanical", "Eskom SPU", "Eskom FSOU Substation", "Eskom ECOU", "Eskom LOU General Buildings", "Eskom KZN Minor Reticulation", "Randwest Electrical", "Randwest Roads & Stormwater", "Randwest Water rand sanitation", "Randwest Bulk", "RAL", "Stellenbosh", "Liquid ECPG", "Liquid ECSOD", "Liquid Gauteng SOD", "Telkom", "MTN", "Centlec", "City Power", "Umhlathuze Municipality", "Eskom WC", "COE Buildings", "Midvaal Water", "Midvaal Electricity", "Uthukela", "Kgetleng River", "Ray Nkonyeni Facility", "Ray Nkonyeni Electrical Material", "Ray Nkonyeni Mast", "Ray Nkonyeni Meter Reading", "Ramotshere Electrical Supplies", "Newcastle Substations", "Ubuntu", "IDT North West Buidlings", "Amajuba Generator", "uPhongolo", "Abaquilisi Battery Supplies", "Abaquilisi Streetlights"];
-const DEFAULT_MANAGER_OPTIONS = ["Moses", "Johan", "Siyanda", "Dave", "James", "Rayman", "Timothy" ,"Roads Site Agent COT", "Stanley(Aqua)", "Civil Site Agent", "Roads Site Agent CPT", "Brian", "EL CM", "Tony", "Govern", "Graham", "Ronald", "Petros", "Elroy", "Mesh", "Vusi", "Tinotenda", "Sydney", "Andrew", "Phillip", "Moeti"];
+const DEFAULT_MANAGER_OPTIONS = ["Moses", "Johan", "Siyanda", "Dave", "James", "Rayman", "Timothy", "Roads Site Agent COT", "Stanley(Aqua)", "Civil Site Agent", "Roads Site Agent CPT", "Brian", "EL CM", "Tony", "Govern", "Graham", "Ronald", "Petros", "Elroy", "Mesh", "Vusi", "Tinotenda", "Sydney", "Andrew", "Phillip", "Moeti"];
 const OVERRIDE_COST_CENTER = 'Onpoint Ontime';
 const ONPOINT_OVERRIDE_TOTAL_CONFIRMED = 388301184;
 const GROUP_OVERRIDE_TOTAL_CONFIRMED = 551035205;
@@ -3212,7 +3212,7 @@ const DISTINCT_OVERRIDE_COST_CENTER = 'Distinct Hire';
 const DISTINCT_OVERRIDE_TOTAL_CONFIRMED = 6000000;
 const ONPOINT_OVERRIDE_TOTAL_FORECAST_FIXED = 323665217.00;
 const EXCLUDED_MANAGER_NAMES = new Set([
-  'centell 11','centlec cd11','eskom havard','eskom lou gb','eskom l ou gb','coe streetlights','osingisinin','osingisingini','timothy'
+  'centell 11','centlec cd11','eskom havard','eskom lou gb','eskom l ou gb','coe streetlights','osingisinin','osingisingini'
 ]);
 const PROJECT_GROUPS = {
   'Coega': ['Zamafuthi','MBONWA','OSINGISINGINI',''],
@@ -3223,7 +3223,7 @@ const PROJECT_PARENT_BY_CHILD = Object.fromEntries(Object.entries(PROJECT_GROUPS
 function cleanManagerName(value){
   const raw = text(value);
   if (!raw) return '';
-  const fixed = raw.replace(/\bTimothy\b/gi,'').replace(/\s{2,}/g,' ').trim();
+  const fixed = raw.replace(/\s{2,}/g,' ').trim();
   if (!fixed) return '';
   const key = lower(fixed).replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();
   if (EXCLUDED_MANAGER_NAMES.has(key)) return '';
