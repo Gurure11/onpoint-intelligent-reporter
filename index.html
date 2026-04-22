@@ -3216,7 +3216,15 @@ const EXCLUDED_MANAGER_NAMES = new Set([
 ]);
 const PROJECT_GROUPS = {
   'Coega': ['Zamafuthi','MBONWA','OSINGISINGINI',''],
-  'Liquid': ['Liquid BMP 945','Liquid BMP 999']
+  'Liquid': ['Liquid BMP 945','Liquid BMP 999'],
+  'Hiring & Drilling': ['Grader','Roller','Nissan CW15XZGP CherryPicker','Drilling'],
+  'KZN General Buildings': ['KZN Building Westville','KZN Building Athene','KZN Plumbing Emergency','KZN Chivelstone']
+};
+const PROJECT_GROUP_LABELS = {
+  'Coega': 'Coega | Rayman',
+  'Liquid': 'Liquid',
+  'Hiring & Drilling': 'Distinct | Hiring & Drilling',
+  'KZN General Buildings': 'KZN General Buildings'
 };
 const MANAGER_PROJECT_BRANCHES = { 'Rayman': ['Coega','Zamafuthi','MBONWA','OSINGISINGINI',''] };
 const PROJECT_PARENT_BY_CHILD = Object.fromEntries(Object.entries(PROJECT_GROUPS).flatMap(([parent, children]) => children.map(child => [child, parent])));
@@ -3256,34 +3264,36 @@ function projectDisplayOptions(baseProjects, managerValue){
     (MANAGER_PROJECT_BRANCHES[managerValue] || []).forEach(project => set.add(project));
   }
   const all = [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b));
-  const grouped = {Coega: [], Liquid: [], Other: []};
+  const grouped = { Other: [] };
+  Object.keys(PROJECT_GROUPS).forEach(parent => { grouped[parent] = []; });
   all.forEach(project => {
     const parent = projectGroupParent(project);
-    if (parent === 'Coega') grouped.Coega.push(project);
-    else if (parent === 'Liquid') grouped.Liquid.push(project);
+    if (parent && grouped[parent]) grouped[parent].push(project);
     else grouped.Other.push(project);
   });
-  if (grouped.Coega.length) grouped.Coega = ['Coega', ...grouped.Coega.filter(p => p !== 'Coega')];
-  if (grouped.Liquid.length) grouped.Liquid = ['Liquid', ...grouped.Liquid.filter(p => p !== 'Liquid')];
-  grouped.Other = grouped.Other.filter(p => p !== 'Coega' && p !== 'Liquid');
+  Object.keys(PROJECT_GROUPS).forEach(parent => {
+    if (grouped[parent].length) grouped[parent] = [parent, ...grouped[parent].filter(p => p !== parent)];
+  });
+  grouped.Other = grouped.Other.filter(p => !Object.keys(PROJECT_GROUPS).includes(p));
   return grouped;
 }
 function fillProjectFilterTree(id, grouped, selected='All'){
   const el = $(id);
   if (!el) return;
   const groups = grouped || {Other:[]};
-  const allValues = ['All', ...(groups.Coega || []), ...(groups.Liquid || []), ...(groups.Other || [])];
+  const groupedValues = Object.keys(PROJECT_GROUPS).flatMap(parent => groups[parent] || []);
+  const allValues = ['All', ...groupedValues, ...(groups.Other || [])];
   if (!allValues.includes(selected)) selected = 'All';
-  const mk = v => `<option value="${escapeHtml(v)}" ${v===selected?'selected':''}>${escapeHtml(v)}</option>`;
+  const mk = (value, label=value) => `<option value="${escapeHtml(value)}" ${value===selected?'selected':''}>${escapeHtml(label)}</option>`;
   let html = mk('All');
-  if ((groups.Coega || []).length) {
-    html += `<optgroup label="Coega | Rayman">${groups.Coega.map(v => mk(v === 'Coega' ? v : '↳ ' + v).replace(`value=\"↳ ${escapeHtml(v)}\"`,`value=\"${escapeHtml(v)}\"`)).join('')}</optgroup>`;
-  }
-  if ((groups.Liquid || []).length) {
-    html += `<optgroup label="Liquid">${groups.Liquid.map(v => mk(v === 'Liquid' ? v : '↳ ' + v).replace(`value=\"↳ ${escapeHtml(v)}\"`,`value=\"${escapeHtml(v)}\"`)).join('')}</optgroup>`;
-  }
+  Object.keys(PROJECT_GROUPS).forEach(parent => {
+    const values = groups[parent] || [];
+    if (!values.length) return;
+    const label = PROJECT_GROUP_LABELS[parent] || parent;
+    html += `<optgroup label="${escapeHtml(label)}">${values.map(v => mk(v, v === parent ? v : '↳ ' + v)).join('')}</optgroup>`;
+  });
   if ((groups.Other || []).length) {
-    html += `<optgroup label="Other Projects">${groups.Other.map(mk).join('')}</optgroup>`;
+    html += `<optgroup label="Other Projects">${groups.Other.map(v => mk(v)).join('')}</optgroup>`;
   }
   el.innerHTML = html;
 }
@@ -3332,7 +3342,7 @@ function populateFilters(){
   const managerValue = state.filters.manager || 'All';
   const baseProjects = rawProjectNames().filter(v => text(v) && !allCostCenters.some(c => lower(c) === lower(v))).map(cleanedProjectName);
   const groupedProjects = projectDisplayOptions(baseProjects, managerValue);
-  const flatProjects = ['All', ...(groupedProjects.Coega || []), ...(groupedProjects.Liquid || []), ...(groupedProjects.Other || [])];
+  const flatProjects = ['All', ...Object.keys(PROJECT_GROUPS).flatMap(parent => groupedProjects[parent] || []), ...(groupedProjects.Other || [])];
   if (!flatProjects.includes(state.filters.project)) state.filters.project = 'All';
   fillProjectFilterTree('projectFilter', groupedProjects, state.filters.project);
 
@@ -3345,7 +3355,7 @@ function populateFilters(){
   fillSelect('managerFilter', managers, state.filters.manager);
   fillSelect('revManager', allManagers); fillSelect('projManager', allManagers); fillSelect('invManager', allManagers); fillSelect('payManager', allManagers);
   fillSelect('revCostCenter', allCostCenters); fillSelect('projDivision', allCostCenters); fillSelect('invCostCenter', allCostCenters); fillSelect('payCostCenter', allCostCenters);
-  const entryProjects = [...new Set([...baseProjects, ...(groupedProjects.Coega || []), ...(groupedProjects.Liquid || []), ...(groupedProjects.Other || [])])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  const entryProjects = [...new Set([...baseProjects, ...Object.keys(PROJECT_GROUPS).flatMap(parent => groupedProjects[parent] || []), ...(groupedProjects.Other || [])])].filter(Boolean).sort((a,b)=>a.localeCompare(b));
   fillSelect('revProjectName', entryProjects); fillSelect('invProjectName', entryProjects); fillSelect('payProjectName', entryProjects);
   applyRememberedRevenueBudgets(); wireProjectAdders();
 }
