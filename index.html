@@ -120,6 +120,17 @@
     .register-section{max-height:0;overflow:hidden;opacity:0;transition:max-height .25s ease,opacity .2s ease,margin-top .25s ease}
     .register-section.expanded{max-height:520px;opacity:1;margin-top:10px}
 
+
+    /* Month/date quick filters */
+    .date-filter-card{margin-top:16px}
+    .date-filter-grid{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:10px;align-items:end}
+    .date-filter-grid button{padding:10px 12px;border-radius:12px}
+    .date-filter-status{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700}
+    .date-filter-status.green{background:var(--green-bg);color:var(--green)}
+    .date-filter-status.yellow{background:var(--amber-bg);color:var(--amber)}
+    .date-filter-status.red{background:var(--red-bg);color:var(--red)}
+    @media (max-width:1100px){.date-filter-grid{grid-template-columns:1fr}}
+
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -174,6 +185,19 @@
         <select id="projectFilter"></select>
         <input id="searchFilter" placeholder="Search project, manager, cost center" />
       </div>
+    </div>
+
+    <div class="card date-filter-card">
+      <h3 style="margin-top:0">Month / Date View Filter</h3>
+      <div class="date-filter-grid">
+        <div class="field"><label>Month</label><select id="dateMonthFilter"><option value="">All months</option><option value="0">January</option><option value="1">February</option><option value="2">March</option><option value="3">April</option><option value="4">May</option><option value="5">June</option><option value="6">July</option><option value="7">August</option><option value="8">September</option><option value="9">October</option><option value="10">November</option><option value="11">December</option></select></div>
+        <div class="field"><label>Year</label><select id="dateYearFilter"><option value="">All years</option></select></div>
+        <div class="field"><label>Specific date</label><input id="exactDateFilter" type="date"></div>
+        <button id="thisMonthBtn" type="button">This Month</button>
+        <button id="lastMonthBtn" type="button" class="secondary">Last Month</button>
+        <button id="clearDateFilterBtn" type="button" class="secondary">Clear Date Filter</button>
+      </div>
+      <div id="dateFilterStatus" class="date-filter-status green">Showing all dates</div>
     </div>
 
     <div class="kpis" id="headlineKpis"></div>
@@ -386,6 +410,11 @@ const GROUP_FIXED_MONTHLY_PROJECTED = 34220381;
 const GROUP_FIXED_MONTHLY_STRAIGHTLINE = 39556824;
 const state = { projects:[], revenue:[], invoices:[], payments:[], managerBudgets:[], orders:[], straightline:[], logins:[], currentUser:null, filters:{ period:'Monthly', division:'All', manager:'All', project:'All', search:'' } }; let charts = {};
 const $ = id => document.getElementById(id);
+state.filters.dateMonth = '';
+state.filters.dateYear = '';
+state.filters.exactDate = '';
+state.filters.dateQuick = '';
+
 const log = (...args) => { const msg = args.map(v => typeof v === 'string' ? v : JSON.stringify(v,null,2)).join(' '); $('diagnostics').textContent = `${new Date().toLocaleString()}\n${msg}\n\n` + $('diagnostics').textContent; };
 const num = v => Number(String(v ?? '').replace(/[^0-9.-]/g,'')) || 0;
 const money = v => new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR',maximumFractionDigits:0}).format(num(v));
@@ -724,7 +753,105 @@ function normalizeCostCenterName(v){ const s = lower(v).replace(/[^a-z0-9]/g,'')
 function daysInMonth(dateStr){ const d = dateStr ? new Date(`${normaliseDate(dateStr)}T00:00:00`) : new Date(); return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
 function startOfPeriod(period, refDate = new Date()){ const d = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate()); if (period === 'Daily') return d; if (period === 'Weekly') { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); return x; } if (period === 'Monthly') return new Date(d.getFullYear(), d.getMonth(), 1); if (period === 'Quarterly') { const fiscalMonthIndex = (d.getMonth() - 2 + 12) % 12; const qStartMonth = ((Math.floor(fiscalMonthIndex / 3) * 3) + 2) % 12; const qYear = d.getMonth() < 2 && qStartMonth >= 2 ? d.getFullYear() - 1 : d.getFullYear(); return new Date(qYear, qStartMonth, 1); } const fyYear = d.getMonth() < 2 ? d.getFullYear() - 1 : d.getFullYear(); return new Date(fyYear, 2, 1); }
 function endOfPeriod(period, refDate = new Date()){ const s = startOfPeriod(period, refDate); if (period === 'Daily') return new Date(s.getFullYear(), s.getMonth(), s.getDate()+1); if (period === 'Weekly') return new Date(s.getFullYear(), s.getMonth(), s.getDate()+7); if (period === 'Monthly') return new Date(s.getFullYear(), s.getMonth()+1, 1); if (period === 'Quarterly') return new Date(s.getFullYear(), s.getMonth()+3, 1); return new Date(s.getFullYear()+1, 2, 1); }
-function inPeriod(dateValue, period){ const d = new Date(`${normaliseDate(dateValue)}T00:00:00`); if (isNaN(d)) return false; return d >= startOfPeriod(period) && d < endOfPeriod(period); }
+function dateFilterMatches(dateValue){
+  const iso = normaliseDate(dateValue);
+  if (!iso) return false;
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d)) return false;
+  if (state.filters.exactDate) return iso === state.filters.exactDate;
+  if (state.filters.dateMonth !== '' && state.filters.dateMonth !== null && state.filters.dateMonth !== undefined) {
+    if (d.getMonth() !== Number(state.filters.dateMonth)) return false;
+    if (state.filters.dateYear && d.getFullYear() !== Number(state.filters.dateYear)) return false;
+  }
+  return true;
+}
+function inPeriod(dateValue, period){
+  const d = new Date(`${normaliseDate(dateValue)}T00:00:00`);
+  if (isNaN(d)) return false;
+  if (!dateFilterMatches(dateValue)) return false;
+  return d >= startOfPeriod(period) && d < endOfPeriod(period);
+}
+function activeDateFilterLabel(){
+  if (state.filters.exactDate) return `Specific date: ${formatDisplayDate(state.filters.exactDate)}`;
+  if (state.filters.dateMonth !== '' && state.filters.dateMonth !== null && state.filters.dateMonth !== undefined) {
+    const monthName = new Date(2000, Number(state.filters.dateMonth), 1).toLocaleString('en-ZA', { month:'long' });
+    return `${monthName}${state.filters.dateYear ? ' ' + state.filters.dateYear : ''}`;
+  }
+  return 'Showing all dates';
+}
+function updateDateFilterStatus(){
+  const el = $('dateFilterStatus');
+  if (!el) return;
+  const hasExact = !!state.filters.exactDate;
+  const hasMonth = state.filters.dateMonth !== '' && state.filters.dateMonth !== null && state.filters.dateMonth !== undefined;
+  el.textContent = activeDateFilterLabel();
+  el.className = 'date-filter-status ' + (hasExact ? 'red' : (hasMonth ? 'yellow' : 'green'));
+}
+function populateDateYearFilter(){
+  const el = $('dateYearFilter');
+  if (!el) return;
+  const years = [...new Set([
+    ...visibleRevenueRows().map(r => revenueRecordDateForPeriod(r)).filter(Boolean).map(d => new Date(`${d}T00:00:00`).getFullYear()),
+    new Date().getFullYear()
+  ])].filter(Boolean).sort((a,b)=>b-a);
+  const current = state.filters.dateYear || '';
+  el.innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}" ${String(y)===String(current)?'selected':''}>${y}</option>`).join('');
+}
+function setMonthDateFilter(monthOffset){
+  const d = new Date();
+  d.setMonth(d.getMonth() + monthOffset);
+  state.filters.exactDate = '';
+  state.filters.dateMonth = String(d.getMonth());
+  state.filters.dateYear = String(d.getFullYear());
+  state.filters.dateQuick = monthOffset === 0 ? 'thisMonth' : 'lastMonth';
+  if ($('exactDateFilter')) $('exactDateFilter').value = '';
+  if ($('dateMonthFilter')) $('dateMonthFilter').value = state.filters.dateMonth;
+  populateDateYearFilter();
+  if ($('dateYearFilter')) $('dateYearFilter').value = state.filters.dateYear;
+  renderAll();
+}
+function clearDateFilters(){
+  state.filters.exactDate = '';
+  state.filters.dateMonth = '';
+  state.filters.dateYear = '';
+  state.filters.dateQuick = '';
+  if ($('exactDateFilter')) $('exactDateFilter').value = '';
+  if ($('dateMonthFilter')) $('dateMonthFilter').value = '';
+  populateDateYearFilter();
+  if ($('dateYearFilter')) $('dateYearFilter').value = '';
+  renderAll();
+}
+function wireDateFilters(){
+  populateDateYearFilter();
+  if ($('dateMonthFilter')) $('dateMonthFilter').onchange = e => {
+    state.filters.exactDate = '';
+    state.filters.dateMonth = e.target.value;
+    state.filters.dateQuick = '';
+    if ($('exactDateFilter')) $('exactDateFilter').value = '';
+    renderAll();
+  };
+  if ($('dateYearFilter')) $('dateYearFilter').onchange = e => {
+    state.filters.dateYear = e.target.value;
+    state.filters.dateQuick = '';
+    renderAll();
+  };
+  if ($('exactDateFilter')) $('exactDateFilter').onchange = e => {
+    state.filters.exactDate = e.target.value;
+    if (e.target.value) {
+      state.filters.dateMonth = '';
+      state.filters.dateYear = '';
+      state.filters.dateQuick = '';
+      if ($('dateMonthFilter')) $('dateMonthFilter').value = '';
+      if ($('dateYearFilter')) $('dateYearFilter').value = '';
+    }
+    renderAll();
+  };
+  if ($('thisMonthBtn')) $('thisMonthBtn').onclick = () => setMonthDateFilter(0);
+  if ($('lastMonthBtn')) $('lastMonthBtn').onclick = () => setMonthDateFilter(-1);
+  if ($('clearDateFilterBtn')) $('clearDateFilterBtn').onclick = clearDateFilters;
+  updateDateFilterStatus();
+}
+
 function elapsedPct(period){ const now = new Date(); const start = startOfPeriod(period, now); const end = endOfPeriod(period, now); return Math.max(0, Math.min(100, Math.round(((now - start) / Math.max(end - start,1)) * 100))); }
 function buildTable(el, headers, rows){ el.innerHTML = `<thead><tr>${headers.map(h=>`<th class="${h.class||''}">${h.label}</th>`).join('')}</tr></thead><tbody>${rows.length ? rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${headers[i].class||''}">${c}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}" class="muted">No data</td></tr>`}</tbody>`; }
 function filteredRevenue(){ return state.revenue.filter(r => { if (!inPeriod(r.Date, state.filters.period)) return false; if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false; if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false; if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false; return true; }); }
@@ -3202,7 +3329,7 @@ function bindRevenueActionButtons(){ document.querySelectorAll('[data-revenue-ac
 function filteredRevenue(){ return visibleRevenueRows().filter(r => { const periodDate = revenueRecordDateForPeriod(r); if (!inPeriod(periodDate, state.filters.period)) return false; if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false; if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false; if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false; if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false; return true; }); }
 function revenueRowsForPeriod(period = state.filters.period){ return visibleRevenueRows().filter(r => { const periodDate = revenueRecordDateForPeriod(r); if (!inPeriod(periodDate, period)) return false; if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false; if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false; if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false; if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false; return true; }); }
 function chartRevenueRows(period){ return visibleRevenueRows().filter(r => { const periodDate = revenueRecordDateForPeriod(r); if (!inPeriod(periodDate, period)) return false; if (state.filters.division !== 'All' && normalizeCostCenterName(r.CostCenter) !== state.filters.division) return false; if (state.filters.manager !== 'All' && text(r.Manager) !== state.filters.manager) return false; if (state.filters.project !== 'All' && text(r.ProjectName) !== state.filters.project) return false; if (state.filters.search && !`${r.ProjectName} ${r.Manager} ${r.CostCenter}`.toLowerCase().includes(state.filters.search.toLowerCase())) return false; return true; }); }
-function renderAll(){ try{ applyRolePermissions(); renderKPIs(); renderProgressCards(); renderSummary(); renderPerformanceSection(); } catch(e){ log('Render error', e.message || e); } }
+function renderAll(){ try{ applyRolePermissions(); populateDateYearFilter(); updateDateFilterStatus(); renderKPIs(); renderProgressCards(); renderSummary(); renderPerformanceSection(); } catch(e){ log('Render error', e.message || e); } }
 
 /* === End patched formulas === */
 
@@ -3589,9 +3716,24 @@ renderPerformanceSection = function(){ _renderPerformanceSection_original(); ren
 const _financeCardHtml_original = financeCardHtml;
 financeCardHtml = function(label, snap){ return _financeCardHtml_original(selectedPeriodMetricLabel(label), snap); };
 
+
+/* === Minimal fix: allow selected Month/Date filter to drive period rows ===
+   When a specific month/year or exact date is selected, do not also restrict
+   rows to the current Daily/Weekly/Monthly/Quarterly/Yearly window. This keeps
+   Group YTD and Recent revenue rows visible for the selected period/date view.
+*/
+function hasActiveMonthDateFilter(){
+  return !!state.filters.exactDate || (state.filters.dateMonth !== '' && state.filters.dateMonth !== null && state.filters.dateMonth !== undefined);
+}
+const _inPeriod_before_selected_date_fix = inPeriod;
+inPeriod = function(dateValue, period){
+  if (hasActiveMonthDateFilter()) return dateFilterMatches(dateValue);
+  return _inPeriod_before_selected_date_fix(dateValue, period);
+};
+
 /* === End custom dashboard patch === */
 
-function init(){ state.currentUser = null; try { localStorage.removeItem(USER_SESSION_KEY); } catch(e){} bindTabs(); wireFilters(); wireProjectAdders(); wireExecutiveExports(); startDashboardClock(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('savePaymentBtn').onclick = savePaymentReceived; if ($('loginBtn')) $('loginBtn').onclick = handleLogin; if ($('registerBtn')) $('registerBtn').onclick = handleRegisterButton; if ($('logoutBtn')) $('logoutBtn').onclick = logoutUser; if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').onclick = logoutUser; if ($('loginPassword')) $('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); if ($('loginUsername')) $('loginUsername').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); ['registerName','registerUsername','registerPassword','registerConfirmPassword'].forEach(id => { if ($(id)) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') registerUser(); }); }); $('revDate').value = $('projCreatedAt').value = $('invDate').value = $('payDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); if ($('revProjectName')) $('revProjectName').addEventListener('change', applyRememberedRevenueBudgets); if ($('revManager')) $('revManager').addEventListener('change', applyRememberedRevenueBudgets); if ($('revCostCenter')) $('revCostCenter').addEventListener('change', applyRememberedRevenueBudgets); $('diagnostics').textContent = 'Waiting for first load...'; applyRolePermissions(); setRegisterButtonState(); $('loginOverlay').classList.remove('login-hidden'); if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').classList.add('login-hidden'); }
+function init(){ state.currentUser = null; try { localStorage.removeItem(USER_SESSION_KEY); } catch(e){} bindTabs(); wireFilters(); wireDateFilters(); wireProjectAdders(); wireExecutiveExports(); startDashboardClock(); $('testBtn').onclick = () => quickConnectionTest(); $('refreshBtn').onclick = () => loadData(); $('saveRevenueBtn').onclick = saveRevenue; $('saveProjectBtn').onclick = saveProject; $('saveInvoiceBtn').onclick = saveInvoice; $('savePaymentBtn').onclick = savePaymentReceived; if ($('loginBtn')) $('loginBtn').onclick = handleLogin; if ($('registerBtn')) $('registerBtn').onclick = handleRegisterButton; if ($('logoutBtn')) $('logoutBtn').onclick = logoutUser; if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').onclick = logoutUser; if ($('loginPassword')) $('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); if ($('loginUsername')) $('loginUsername').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); }); ['registerName','registerUsername','registerPassword','registerConfirmPassword'].forEach(id => { if ($(id)) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') registerUser(); }); }); $('revDate').value = $('projCreatedAt').value = $('invDate').value = $('payDate').value = todayISO(); $('periodFilter').innerHTML = PERIODS.map(p=>`<option ${p===state.filters.period?'selected':''}>${p}</option>`).join(''); if ($('revProjectName')) $('revProjectName').addEventListener('change', applyRememberedRevenueBudgets); if ($('revManager')) $('revManager').addEventListener('change', applyRememberedRevenueBudgets); if ($('revCostCenter')) $('revCostCenter').addEventListener('change', applyRememberedRevenueBudgets); $('diagnostics').textContent = 'Waiting for first load...'; applyRolePermissions(); setRegisterButtonState(); $('loginOverlay').classList.remove('login-hidden'); if ($('dashboardLogoutBtn')) $('dashboardLogoutBtn').classList.add('login-hidden'); }
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
